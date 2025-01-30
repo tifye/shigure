@@ -2,8 +2,10 @@ package activity
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
+	"net/http"
 	"sync"
 	"text/template"
 
@@ -82,23 +84,59 @@ func (c *Client) setActivity(a Activity) {
 	c.dirty = true
 }
 
-func (c *Client) StreamSVG(out io.Writer) error {
+func (c *Client) StreamSVG(ctx context.Context, out io.Writer) error {
 	templates, err := template.ParseFiles("./activity/templates/.template.svg")
 	if err != nil {
 		return err
 	}
 
 	activity := c.Activity()
+	base64Image, err := downloadBase64Image(ctx, activity.ThumbnailUrl)
+	if err != nil {
+		return fmt.Errorf("image download: %s", err)
+	}
 
 	input := struct {
 		Title        string
-		ImageSource  string
+		Base64Image  string
 		ExternalLink string
 	}{
 		Title:        fmt.Sprintf("%s - %s", activity.Title, activity.Author),
-		ImageSource:  activity.ThumbnailUrl,
+		Base64Image:  base64Image,
 		ExternalLink: activity.Url,
 	}
 
 	return templates.ExecuteTemplate(out, ".template.svg", input)
+}
+
+func downloadBase64Image(ctx context.Context, url string) (string, error) {
+	type result struct {
+		img string
+		err error
+	}
+	resch := make(chan result)
+	go func() {
+		response, err := http.Get(url)
+		if err != nil {
+			resch <- result{err: err}
+			return
+		}
+		defer response.Body.Close()
+
+		bytes, err := io.ReadAll(response.Body)
+		if err != nil {
+			resch <- result{err: err}
+			return
+		}
+
+		str := base64.StdEncoding.EncodeToString(bytes)
+		resch <- result{img: fmt.Sprintf("data:image/jpeg;base64,%s", str)}
+	}()
+
+	select {
+	case res := <-resch:
+		return res.img, res.err
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 }

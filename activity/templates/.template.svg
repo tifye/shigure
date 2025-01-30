@@ -66,7 +66,7 @@
             </div>
             <a href="{{ .ExternalLink }}" target="_BLANK" class="thumbnail-image">
                 <img width="320" height="180"
-                    src="{{ .ImageSource }}" />
+                    src="{{ .Base64Image }}" />
             </a>
         </div>
     </foreignObject>

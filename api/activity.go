@@ -39,7 +39,7 @@ func handleGetSVG(logger *log.Logger, ac *activity.Client) echo.HandlerFunc {
 		c.Response().Header().Set(echo.HeaderContentType, "image/svg+xml")
 		c.Response().WriteHeader(http.StatusOK)
 		c.Response().Header().Add("Cache-Control", "no-cache")
-		err := ac.StreamSVG(c.Response())
+		err := ac.StreamSVG(c.Request().Context(), c.Response())
 		if err != nil {
 			logger.Errorf("Get SVG: %s", err)
 			return c.NoContent(http.StatusInternalServerError)
