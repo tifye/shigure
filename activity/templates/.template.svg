@@ -29,6 +29,7 @@
         left: 100%;
         white-space: nowrap;
         color: white;
+        font-family: 'Trebuchet MS', sans-serif;
         }
 
         .scrolling-container span:first-child {
@@ -59,15 +60,16 @@
         }
     </style>
     <foreignObject width="320" height="180">
-        <div class="thumbnail" xmlns="http://www.w3.org/1999/xhtml">
+        <a href="{{ .ExternalLink }}" target="_BLANK" class="thumbnail"
+            xmlns="http://www.w3.org/1999/xhtml">
             <div class="scrolling-container">
                 <span>{{ .Title }}</span>
                 <span>{{ .Title }}</span>
             </div>
-            <a href="{{ .ExternalLink }}" target="_BLANK" class="thumbnail-image">
+            <div class="thumbnail-image">
                 <img width="320" height="180"
                     src="{{ .Base64Image }}" />
-            </a>
-        </div>
+            </div>
+        </a>
     </foreignObject>
 </svg>
