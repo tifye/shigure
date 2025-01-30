@@ -1,0 +1,19 @@
+meta {
+  name: Generate key
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{host}}/auth/key
+  body: none
+  auth: digest
+}
+
+headers {
+  Passcode: 344143
+}
+
+script:post-response {
+  bru.setEnvVar("token",res.body)
+}

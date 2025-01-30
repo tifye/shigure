@@ -7,9 +7,13 @@ meta {
 post {
   url: {{host}}/activity/youtube/:videoId
   body: none
-  auth: none
+  auth: bearer
 }
 
 params:path {
   videoId: y7p4wClGpe0
+}
+
+auth:bearer {
+  token: {{token}}
 }
