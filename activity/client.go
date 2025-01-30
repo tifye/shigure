@@ -46,15 +46,9 @@ func NewClient(logger *log.Logger, apiKey string) *Client {
 	client := &Client{
 		logger: logger,
 		apiKey: apiKey,
-		currentActivity: Activity{
-			Id:           "Chocola X Vanilla",
-			Title:        "(─‿‿─)",
-			Author:       "ヾ( ￣O￣)ツ",
-			Url:          "https://www.joshuadematas.me/",
-			ThumbnailUrl: "https://i.pinimg.com/736x/71/eb/50/71eb502aea2fc4e816b67a5bbd114d27.jpg",
-		},
 	}
 
+	client.ClearActivity()
 	client.dirty.Store(true)
 	return client
 }
@@ -95,6 +89,17 @@ func (c *Client) setActivity(a Activity) {
 	c.dirty.Store(true)
 }
 
+func (c *Client) ClearActivity() {
+	c.logger.Info("clearing activity")
+	c.setActivity(Activity{
+		Id:           "Chocola X Vanilla",
+		Title:        "(─‿‿─)",
+		Author:       "ヾ( ￣O￣)ツ",
+		Url:          "https://www.joshuadematas.me/",
+		ThumbnailUrl: "https://i.pinimg.com/736x/71/eb/50/71eb502aea2fc4e816b67a5bbd114d27.jpg",
+	})
+}
+
 func (c *Client) StreamSVG(ctx context.Context, out io.Writer) error {
 	if !c.dirty.Load() {
 		file, err := os.Open("data/activity.svg")
@@ -108,7 +113,7 @@ func (c *Client) StreamSVG(ctx context.Context, out io.Writer) error {
 	c.logger.Info("activity dirty, re-building SVG")
 
 	c.fileMu.Lock()
-	defer c.fileMu.Lock()
+	defer c.fileMu.Unlock()
 
 	file, err := os.OpenFile("data/activity.svg", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {

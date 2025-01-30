@@ -48,3 +48,10 @@ func handleGetSVG(logger *log.Logger, ac *activity.Client) echo.HandlerFunc {
 		return nil
 	}
 }
+
+func handlePostClearActivity(ac *activity.Client) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		ac.ClearActivity()
+		return c.JSON(http.StatusOK, ac.Activity())
+	}
+}
