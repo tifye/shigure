@@ -1,0 +1,15 @@
+meta {
+  name: Verify token
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{host}}/auth/token/verify
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

@@ -47,9 +47,16 @@ func NewServer(logger *log.Logger, config *viper.Viper, deps *ServerDependencies
 	}
 	e.Use(middleware.RateLimiterWithConfig(rlimiterConfig))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:5173", "https://shigure.joshuadematas.me", "http://192.168.18.192:5173"},
+		AllowOrigins: []string{"*"},
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderXRequestedWith, echo.HeaderAuthorization},
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			echo.HeaderXRequestedWith,
+			echo.HeaderAuthorization,
+			"Passcode",
+		},
 	}))
 
 	registerRoutes(e, logger, config, deps)

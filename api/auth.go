@@ -15,21 +15,26 @@ import (
 	"github.com/tifye/shigure/assert"
 )
 
+func verifyToken(c echo.Context, config *viper.Viper) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.NoContent(http.StatusUnauthorized)
+	}
+
+	signingKey := config.GetString("JWT_Signing_Key")
+	assert.AssertNotEmpty(signingKey)
+
+	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+	_, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+		return []byte(signingKey), nil
+	}, jwt.WithExpirationRequired())
+	return err
+}
+
 func requireAuthMiddleware(logger *log.Logger, config *viper.Viper) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			authHeader := c.Request().Header.Get("Authorization")
-			if authHeader == "" {
-				return c.NoContent(http.StatusUnauthorized)
-			}
-
-			signingKey := config.GetString("JWT_Signing_Key")
-			assert.AssertNotEmpty(signingKey)
-
-			tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-			_, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
-				return []byte(signingKey), nil
-			}, jwt.WithExpirationRequired())
+			err := verifyToken(c, config)
 			if err != nil {
 				if errors.Is(err, jwt.ErrTokenExpired) {
 					return c.String(http.StatusUnauthorized, "token expired")
@@ -45,6 +50,26 @@ func requireAuthMiddleware(logger *log.Logger, config *viper.Viper) echo.Middlew
 
 			return next(c)
 		}
+	}
+}
+
+func handlePostVerifyToken(logger *log.Logger, config *viper.Viper) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		err := verifyToken(c, config)
+		if err != nil {
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				return c.String(http.StatusUnauthorized, "token expired")
+			}
+
+			if errors.Is(err, jwt.ErrTokenMalformed) {
+				return c.String(http.StatusBadRequest, "malformed token")
+			}
+
+			logger.Debug("token parse fail", "err", err)
+			return c.NoContent(http.StatusBadRequest)
+		}
+
+		return c.NoContent(http.StatusOK)
 	}
 }
 
