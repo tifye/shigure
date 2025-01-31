@@ -8,7 +8,7 @@ export const Route = createFileRoute("/_auth/")({
 
 function RouteComponent() {
     return (
-        <div className="grid-cols-4 grid">
+        <div className="grid-cols-1 md:grid-cols-3 lg:grid-cols-4 grid">
             <section>
                 <ActivityWidget />
             </section>

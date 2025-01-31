@@ -30,7 +30,7 @@ function _InnerLayout() {
         <>
             <button
                 onClick={toggle}
-                className="absolute m-4 top-0 left-0 text-indigo-800 hover:text-pink-500 transition-colors"
+                className="absolute m-4 md:top-0 md:left-0 md:right-[auto] md:bottom-[auto] right-0 bottom-0 text-indigo-800 hover:text-pink-500 transition-colors"
             >
                 <IconSidebar className="size-8" />
             </button>
@@ -65,7 +65,7 @@ function RouteComponent() {
             {isAuthenticated && !isLoading && (
                 <SidebarProvider className="bg-indigo-950" defaultOpen={false}>
                     <AppSidebar />
-                    <SidebarInset>
+                    <SidebarInset className="p-4 md:p-12">
                         <_InnerLayout />
                     </SidebarInset>
                 </SidebarProvider>

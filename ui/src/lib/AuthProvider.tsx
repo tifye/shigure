@@ -45,7 +45,7 @@ export default function AuthProvider({
             localStorage.setItem("token", tk)
 
             if (window.location.pathname === "/login") {
-                navi({ to: "/" })
+                navi({ to: "/", from: "/login" })
             }
         },
         onError: () => {
@@ -75,6 +75,7 @@ export default function AuthProvider({
     function logout() {
         setToken(null)
         localStorage.removeItem("token")
+        navi({ to: "/login" })
     }
 
     useEffect(() => {
