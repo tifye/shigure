@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_BACKEND_HOST as string
+import { BASE_URL } from "./auth"
 
 export const ActivitySVGURI = `${BASE_URL}/activity/svg`
 
@@ -16,4 +16,3 @@ export default async function GetActivity(): Promise<ActivityData> {
     }
     return res.json();
 }
-

@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@plugin "tailwindcss-motion";
+@plugin "@tailwindcss/typography";
+
+@theme {
+    --font-fira: "Fira Mono", "monospace";
+    --font-manrope: "Manrope", "sans-serif";
+    --font-konigsberg: "Konigsberg", "sans-serif";
+}

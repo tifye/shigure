@@ -1,23 +1,18 @@
-node_modules
+# Local
+.DS_Store
+*.local
+*.log*
 
-# Output
+# Dist
+node_modules
+dist/
+.vinxi
 .output
 .vercel
 .netlify
 .wrangler
-/.svelte-kit
-/build
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Env
-.env
-.env.*
-!.env.example
-!.env.test
-
-# Vite
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
