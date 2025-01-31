@@ -93,7 +93,8 @@ export default function AuthProvider({
 
     const authState: AuthState = {
         token: token,
-        isAuthenticated: !loginMut.isError && !verifyMut.isError,
+        isAuthenticated:
+            !loginMut.isError && !verifyMut.isError && token !== null,
         login: loginMut.mutate,
         isLoading: loginMut.isPending || verifyMut.isPending,
         mutation: loginMut,

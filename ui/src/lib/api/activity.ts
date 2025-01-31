@@ -1,4 +1,4 @@
-import { BASE_URL } from "./auth"
+import { BASE_URL, PostWithAuth } from "./auth"
 
 export const ActivitySVGURI = `${BASE_URL}/activity/svg`
 
@@ -9,10 +9,17 @@ export type ActivityData = {
     Url: string
 }
 
-export default async function GetActivity(): Promise<ActivityData> {
+export async function GetActivity(): Promise<ActivityData> {
     const res = await fetch(`${BASE_URL}/activity`)
     if (!res.ok) {
         throw new Error(await res.text())
     }
     return res.json();
+}
+
+export async function ClearActivity(token: string): Promise<void> {
+    const res = await fetch(`${BASE_URL}/activity/clear`, PostWithAuth(token))
+    if (!res.ok) {
+        throw new Error(await res.text())
+    }
 }
