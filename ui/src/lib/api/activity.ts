@@ -3,6 +3,7 @@ import { BASE_URL, PostWithAuth } from "./auth"
 export const ActivitySVGURI = `${BASE_URL}/activity/svg`
 
 export type ActivityData = {
+    Id: string
     Title: string
     Author: string
     ThumbnailUrl: string

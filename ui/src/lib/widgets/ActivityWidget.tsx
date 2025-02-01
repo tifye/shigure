@@ -24,11 +24,20 @@ export default function ActivityWidget() {
 
     return (
         <article className="text-indigo-950 font-manrope">
-            <img
-                className="w-full rounded-xl shadow-md"
-                src={`${ActivitySVGURI}?id=${data?.ThumbnailUrl}`}
-                alt="activity thumbanail"
-            />
+            {data && (
+                <img
+                    className="w-full rounded-xl shadow-md"
+                    src={`${ActivitySVGURI}?id=${data.Id}`}
+                    alt="activity thumbanail"
+                />
+            )}
+            {!data && (
+                <img
+                    className="w-full rounded-xl shadow-md"
+                    src={`https://i.pinimg.com/736x/1b/0f/cb/1b0fcbd7e77a195fad59539af48d20bb.jpg`}
+                    alt="activity thumbanail"
+                />
+            )}
 
             <div className="flex mt-2 flex-row gap-2 h-12 *:shadow-md ">
                 <p className="grow h-full bg-indigo-50 rounded-xl gap-2 flex flex-row items-center px-4 truncate">
