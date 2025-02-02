@@ -21,7 +21,7 @@ func verifyToken(c echo.Context, config *viper.Viper) error {
 		return c.NoContent(http.StatusUnauthorized)
 	}
 
-	signingKey := config.GetString("JWT_Signing_Key")
+	signingKey := config.GetString("JWT_SIGNING_KEY")
 	assert.AssertNotEmpty(signingKey)
 
 	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
@@ -75,7 +75,7 @@ func handlePostVerifyToken(logger *log.Logger, config *viper.Viper) echo.Handler
 
 func handleGetToken(logger *log.Logger, config *viper.Viper) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		secret := config.GetString("OTP_Secret")
+		secret := config.GetString("OTP_SECRET")
 		assert.AssertNotEmpty(secret)
 
 		passcode := c.Request().Header.Get("Passcode")
@@ -92,7 +92,7 @@ func handleGetToken(logger *log.Logger, config *viper.Viper) echo.HandlerFunc {
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		})
-		signingKey := config.GetString("JWT_Signing_Key")
+		signingKey := config.GetString("JWT_SIGNING_KEY")
 		assert.AssertNotEmpty(signingKey)
 		signed, err := token.SignedString([]byte(signingKey))
 		if err != nil {
@@ -110,7 +110,7 @@ func handleGetGenerateToken(logger *log.Logger, config *viper.Viper) echo.Handle
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 30)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		})
-		signingKey := config.GetString("JWT_Signing_Key")
+		signingKey := config.GetString("JWT_SIGNING_KEY")
 		assert.AssertNotEmpty(signingKey)
 		signed, err := token.SignedString([]byte(signingKey))
 		if err != nil {

@@ -75,7 +75,7 @@ func run(ctx context.Context, logger *log.Logger, config *viper.Viper) error {
 }
 
 func initDependencies(logger *log.Logger, config *viper.Viper) (*api.ServerDependencies, error) {
-	youtubeApiKey := config.GetString("Youtube_Data_API_Key")
+	youtubeApiKey := config.GetString("YOUTUBE_DATA_API_KEY")
 	assert.AssertNotEmpty(youtubeApiKey)
 
 	return &api.ServerDependencies{
