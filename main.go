@@ -19,6 +19,9 @@ import (
 )
 
 func main() {
+	config := viper.New()
+	config.AutomaticEnv()
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Warn("could not load .env file: %s", err)
@@ -30,9 +33,6 @@ func main() {
 	logger := log.NewWithOptions(os.Stdout, log.Options{
 		Level: log.DebugLevel,
 	})
-
-	config := viper.New()
-	config.AutomaticEnv()
 
 	err = run(ctx, logger, config)
 	if err != nil {
