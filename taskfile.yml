@@ -1,4 +1,13 @@
 version: '3'
 
 tasks:
-  dev: air -c .air.toml
+  dev-server:
+    cmds:
+      - air -c .air.toml
+  dev-admin: 
+    cmds:
+      - npm --prefix ui/ run dev
+  dev:
+    deps:
+      - dev-server
+      - dev-admin
