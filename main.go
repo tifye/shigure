@@ -44,6 +44,8 @@ func run(ctx context.Context, logger *log.Logger, config *viper.Viper) error {
 	config.SetDefault("PORT", 6565)
 	port := config.GetInt("PORT")
 
+	logger.Print(os.Environ())
+
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return fmt.Errorf("net listen: %s", err)
