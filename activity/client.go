@@ -2,6 +2,8 @@ package activity
 
 import (
 	"context"
+	"embed"
+	_ "embed"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -15,6 +17,9 @@ import (
 
 	"github.com/tifye/shigure/assert"
 )
+
+//go:embed templates/*
+var templates embed.FS
 
 type Activity struct {
 	Id           string
@@ -123,7 +128,7 @@ func (c *Client) StreamSVG(ctx context.Context, out io.Writer) error {
 
 	out = io.MultiWriter(file, out)
 
-	templates, err := template.ParseFiles("./activity/templates/.template.svg")
+	templates, err := template.ParseFS(templates)
 	if err != nil {
 		return err
 	}
