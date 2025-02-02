@@ -1,0 +1,39 @@
+name: Deploy to Cloud Run from source
+
+on:
+  push:
+    branches: 
+      - master
+
+env:
+  PROJECT_ID: personal-platform-399513
+  SERVICE: shigure
+  REGION: europe-west1
+
+jobs:
+  deploy:
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Google auth
+        id: auth
+        uses: google-github-actions/auth@v0
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v0
+        with:
+          service: ${{ env.SERVICE }}
+          region: ${{ env.REGION }}
+          source: ./
+
+      - name: Output URL
+        run: echo ${{ steps.deploy.outputs.url }}
