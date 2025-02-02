@@ -41,7 +41,7 @@ func main() {
 }
 
 func run(ctx context.Context, logger *log.Logger, config *viper.Viper) error {
-	config.SetDefault("PORT", 8080)
+	config.SetDefault("PORT", 6565)
 	port := config.GetInt("PORT")
 
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
