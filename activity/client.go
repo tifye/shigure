@@ -128,7 +128,7 @@ func (c *Client) StreamSVG(ctx context.Context, out io.Writer) error {
 
 	out = io.MultiWriter(file, out)
 
-	templates, err := template.ParseFS(templates)
+	templates, err := template.ParseFS(templates, "*/**")
 	if err != nil {
 		return err
 	}
