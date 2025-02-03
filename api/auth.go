@@ -89,7 +89,7 @@ func handleGetToken(logger *log.Logger, config *viper.Viper) echo.HandlerFunc {
 		}
 
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		})
 		signingKey := config.GetString("JWT_SIGNING_KEY")

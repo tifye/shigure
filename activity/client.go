@@ -3,7 +3,6 @@ package activity
 import (
 	"context"
 	"embed"
-	_ "embed"
 	"encoding/base64"
 	"fmt"
 	"html"
