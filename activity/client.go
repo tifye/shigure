@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"os"
@@ -140,14 +141,15 @@ func (c *Client) StreamSVG(ctx context.Context, out io.Writer) error {
 		return fmt.Errorf("image download: %s", err)
 	}
 
+	title := fmt.Sprintf("%s - %s", activity.Title, activity.Author)
 	input := struct {
 		Title        string
 		Base64Image  string
 		ExternalLink string
 	}{
-		Title:        fmt.Sprintf("%s - %s", activity.Title, activity.Author),
+		Title:        html.EscapeString(title),
 		Base64Image:  base64Image,
-		ExternalLink: activity.Url,
+		ExternalLink: html.EscapeString(activity.Url),
 	}
 
 	err = templates.ExecuteTemplate(out, ".template.svg", input)
