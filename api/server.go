@@ -9,11 +9,13 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/viper"
 	"github.com/tifye/shigure/activity"
+	"github.com/tifye/shigure/personalsite"
 	"golang.org/x/time/rate"
 )
 
 type ServerDependencies struct {
 	ActivityClient *activity.Client
+	RoomHub        *personalsite.RoomHub
 }
 
 func NewServer(logger *log.Logger, config *viper.Viper, deps *ServerDependencies) *http.Server {

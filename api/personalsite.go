@@ -1,12 +1,12 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/charmbracelet/log"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
+	"github.com/tifye/shigure/personalsite"
 )
 
 var (
@@ -17,7 +17,12 @@ var (
 	}
 )
 
-func handlePersonalSiteRoom(logger *log.Logger) echo.HandlerFunc {
+type PositionData struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
+func handlePersonalSiteRoom(logger *log.Logger, room *personalsite.RoomHub) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 		if err != nil {
@@ -26,16 +31,36 @@ func handlePersonalSiteRoom(logger *log.Logger) echo.HandlerFunc {
 		}
 		defer conn.Close()
 
+		wr := make(chan []byte)
+		defer close(wr)
+		user := &personalsite.RoomUser{
+			ID:        room.NextID(),
+			WriteChan: wr,
+		}
+		room.Register(user)
+		defer room.Unregister(user)
+
 		logger.Info("client connected")
 
+		go func() {
+			for msg := range user.WriteChan {
+				err := conn.WriteMessage(websocket.TextMessage, msg)
+				if err != nil {
+					logger.Error("Write to websocket", "id", user.ID, "err", err)
+				}
+			}
+		}()
+
 		for {
-			// use ws.Read() to control bytes read
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
 				logger.Error("ws read", "err", err)
 				break
 			}
-			fmt.Printf("%s\n", msg)
+
+			logger.Print(msg)
+			room.UserMessage(user, msg)
+
 		}
 
 		return c.NoContent(http.StatusOK)

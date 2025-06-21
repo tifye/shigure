@@ -19,5 +19,5 @@ func registerRoutes(e *echo.Echo, logger *log.Logger, config *viper.Viper, deps 
 	auth.GET("/auth/token/generate", handleGetGenerateToken(logger, config))
 	e.POST("/auth/token/verify", handlePostVerifyToken(logger, config))
 
-	e.GET("/personalsite/room", handlePersonalSiteRoom(logger))
+	e.GET("/personalsite/room", handlePersonalSiteRoom(logger, deps.RoomHub))
 }
