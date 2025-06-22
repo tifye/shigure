@@ -41,7 +41,6 @@ func (r *RoomHub) Run() {
 			delete(r.users, u)
 			r.logger.Info("Unregistered user", "id", u.ID)
 		case msg := <-r.broadcast:
-			r.logger.Debug("Broadcasting")
 			for u := range r.users {
 				if u == msg.user {
 					continue
@@ -62,6 +61,15 @@ func (r *RoomHub) Register(u *RoomUser) {
 
 func (r *RoomHub) Unregister(u *RoomUser) {
 	r.unregch <- u
+	msg, err := json.Marshal(userUnregistered{
+		ID:    u.ID,
+		Unreg: true,
+	})
+	if err != nil {
+		r.logger.Error("Failed to send unreg message", "id", u.ID, "err", err)
+		return
+	}
+	r.broadcast <- broadcastMessage{user: u, msg: msg}
 }
 
 type positionData struct {
@@ -74,14 +82,17 @@ type userPositionData struct {
 	positionData
 }
 
+type userUnregistered struct {
+	ID    uint32 `json:"id"`
+	Unreg bool   `json:"delete,omitzero"`
+}
+
 type broadcastMessage struct {
 	user *RoomUser
 	msg  []byte
 }
 
 func (r *RoomHub) UserMessage(u *RoomUser, msg []byte) {
-	r.logger.Debug("User message", "id", u.ID, "msg", string(msg))
-
 	var pdata userPositionData
 	if err := json.Unmarshal(msg, &pdata); err != nil {
 		r.logger.Error("json unmarshal", "err", err)

@@ -58,9 +58,7 @@ func handlePersonalSiteRoom(logger *log.Logger, room *personalsite.RoomHub) echo
 				break
 			}
 
-			logger.Print(msg)
 			room.UserMessage(user, msg)
-
 		}
 
 		return c.NoContent(http.StatusOK)
