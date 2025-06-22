@@ -16,6 +16,7 @@ import (
 	"github.com/tifye/shigure/activity"
 	"github.com/tifye/shigure/api"
 	"github.com/tifye/shigure/assert"
+	"github.com/tifye/shigure/personalsite"
 )
 
 func main() {
@@ -78,7 +79,11 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (*api.ServerDepen
 	youtubeApiKey := config.GetString("YOUTUBE_DATA_API_KEY")
 	assert.AssertNotEmpty(youtubeApiKey)
 
+	rh := personalsite.NewRoomHub(logger.WithPrefix("room"))
+	go rh.Run()
+
 	return &api.ServerDependencies{
 		ActivityClient: activity.NewClient(logger, youtubeApiKey),
+		RoomHub:        rh,
 	}, nil
 }
