@@ -1,7 +1,7 @@
 package activity
 
 import (
-	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -64,7 +64,11 @@ func NewVSCodeActivityClient(logger *log.Logger) *VSCodeActivityClient {
 func (c *VSCodeActivityClient) SetActivity(a VSCodeActivity) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	a.Filename = filepath.Base(filepath.Clean(a.Filename))
+
+	parts := strings.FieldsFunc(a.Filename, func(r rune) bool {
+		return r == '\\' || r == '/'
+	})
+	a.Filename = parts[len(parts)-1]
 	c.activity = a
 	c.lastUpdate = time.Now()
 }
