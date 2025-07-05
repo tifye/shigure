@@ -28,13 +28,13 @@ func handlePostYoutubeActivity(logger *log.Logger, ac *activity.Client) echo.Han
 	}
 }
 
-func handleGetActivity(ac *activity.Client) echo.HandlerFunc {
+func handleGetYoutubeActivity(ac *activity.Client) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		return c.JSON(http.StatusOK, ac.Activity())
 	}
 }
 
-func handleGetSVG(logger *log.Logger, ac *activity.Client) echo.HandlerFunc {
+func handleGetYoutubeActivitySVG(logger *log.Logger, ac *activity.Client) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		c.Response().Header().Set(echo.HeaderContentType, "image/svg+xml")
 		c.Response().Header().Add("Cache-Control", "no-cache")
@@ -49,9 +49,30 @@ func handleGetSVG(logger *log.Logger, ac *activity.Client) echo.HandlerFunc {
 	}
 }
 
-func handlePostClearActivity(ac *activity.Client) echo.HandlerFunc {
+func handlePostClearYoutubeActivity(ac *activity.Client) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		ac.ClearActivity()
+		return c.JSON(http.StatusOK, ac.Activity())
+	}
+}
+
+func handlePostVSCodeActivity(logger *log.Logger, ac *activity.VSCodeActivityClient) echo.HandlerFunc {
+	type request activity.VSCodeActivity
+	return func(c echo.Context) error {
+		var req request
+		if err := c.Bind(&req); err != nil {
+			return err
+		}
+
+		logger.Debug("updating vscode activity", "activity", req)
+		ac.SetActivity(activity.VSCodeActivity(req))
+
+		return c.NoContent(http.StatusOK)
+	}
+}
+
+func handleGetVSCodeActivity(ac *activity.VSCodeActivityClient) echo.HandlerFunc {
+	return func(c echo.Context) error {
 		return c.JSON(http.StatusOK, ac.Activity())
 	}
 }

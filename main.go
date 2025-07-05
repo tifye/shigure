@@ -83,7 +83,8 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (*api.ServerDepen
 	go rh.Run()
 
 	return &api.ServerDependencies{
-		ActivityClient: activity.NewClient(logger, youtubeApiKey),
-		RoomHub:        rh,
+		ActivityClient:       activity.NewClient(logger.WithPrefix("youtube"), youtubeApiKey),
+		VSCodeActivityClient: activity.NewVSCodeActivityClient(logger.WithPrefix("vscode")),
+		RoomHub:              rh,
 	}, nil
 }

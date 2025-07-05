@@ -14,8 +14,9 @@ import (
 )
 
 type ServerDependencies struct {
-	ActivityClient *activity.Client
-	RoomHub        *personalsite.RoomHub
+	ActivityClient       *activity.Client
+	VSCodeActivityClient *activity.VSCodeActivityClient
+	RoomHub              *personalsite.RoomHub
 }
 
 func NewServer(logger *log.Logger, config *viper.Viper, deps *ServerDependencies) *http.Server {
