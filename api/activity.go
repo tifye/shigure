@@ -71,8 +71,9 @@ func handlePostVSCodeActivity(logger *log.Logger, ac *activity.VSCodeActivityCli
 	}
 }
 
-func handleGetVSCodeActivity(ac *activity.VSCodeActivityClient) echo.HandlerFunc {
+func handleGetVSCodeActivity(logger *log.Logger, ac *activity.VSCodeActivityClient) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		logger.Debug("get vscode activity")
 		return c.JSON(http.StatusOK, ac.Activity())
 	}
 }

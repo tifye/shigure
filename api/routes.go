@@ -15,7 +15,7 @@ func registerRoutes(e *echo.Echo, logger *log.Logger, config *viper.Viper, deps 
 	auth.POST("/activity/clear", handlePostClearYoutubeActivity(deps.ActivityClient))
 	auth.POST("/activity/youtube/:videoId", handlePostYoutubeActivity(logger, deps.ActivityClient))
 
-	e.GET("/activity/vscode", handleGetVSCodeActivity(deps.VSCodeActivityClient))
+	e.GET("/activity/vscode", handleGetVSCodeActivity(logger, deps.VSCodeActivityClient))
 	auth.POST("/activity/vscode", handlePostVSCodeActivity(logger, deps.VSCodeActivityClient))
 
 	e.GET("/auth/token", handleGetToken(logger, config))
