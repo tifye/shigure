@@ -32,33 +32,64 @@ if (Chocola && Vanilla) || Maple {
 }
 
 type VSCodeActivityClient struct {
-	logger     *log.Logger
-	activity   VSCodeActivity
-	lastUpdate time.Time
-	mu         sync.RWMutex
+	logger      *log.Logger
+	activity    VSCodeActivity
+	lastUpdate  time.Time
+	mu          sync.RWMutex
+	subscribers map[chan<- VSCodeActivity]struct{}
+	regch       chan chan<- VSCodeActivity
+	unregch     chan chan<- VSCodeActivity
+	notify      chan VSCodeActivity
 }
 
 func NewVSCodeActivityClient(logger *log.Logger) *VSCodeActivityClient {
 	assert.AssertNotNil(logger)
 
 	ac := &VSCodeActivityClient{
-		logger:   logger,
-		activity: defaultAcitivty,
+		logger:      logger,
+		activity:    defaultAcitivty,
+		subscribers: map[chan<- VSCodeActivity]struct{}{},
+		regch:       make(chan chan<- VSCodeActivity),
+		unregch:     make(chan chan<- VSCodeActivity),
+		notify:      make(chan VSCodeActivity),
 	}
 
 	ticker := time.NewTicker(5 * time.Minute)
 	// intentionally run for lifetime
 	go func() {
-		for range ticker.C {
-			ac.mu.RLock()
-			if time.Since(ac.lastUpdate) > 30*time.Minute {
-				ac.activity = defaultAcitivty
+		for {
+			select {
+			case <-ticker.C:
+				ac.mu.RLock()
+				if time.Since(ac.lastUpdate) > 30*time.Minute {
+					ac.activity = defaultAcitivty
+				}
+				ac.mu.RUnlock()
+			case sub := <-ac.regch:
+				ac.subscribers[sub] = struct{}{}
+				ac.logger.Info("VSC Activity subscriber added")
+			case sub := <-ac.unregch:
+				close(sub)
+				delete(ac.subscribers, sub)
+				ac.logger.Info("VSC Activity subscriber removed")
+			case a := <-ac.notify:
+				ac.logger.Debug("notifying subscribers")
+				for sub := range ac.subscribers {
+					sub <- a
+				}
 			}
-			ac.mu.RUnlock()
 		}
 	}()
 
 	return ac
+}
+
+func (r *VSCodeActivityClient) Subscribe(sub chan<- VSCodeActivity) {
+	r.regch <- sub
+}
+
+func (r *VSCodeActivityClient) Unsubscribe(sub chan<- VSCodeActivity) {
+	r.regch <- sub
 }
 
 func (c *VSCodeActivityClient) SetActivity(a VSCodeActivity) {
@@ -71,6 +102,8 @@ func (c *VSCodeActivityClient) SetActivity(a VSCodeActivity) {
 	a.Filename = parts[len(parts)-1]
 	c.activity = a
 	c.lastUpdate = time.Now()
+
+	c.notify <- a
 }
 
 func (c *VSCodeActivityClient) Activity() VSCodeActivity {

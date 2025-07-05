@@ -1,9 +1,11 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/charmbracelet/log"
+	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/tifye/shigure/activity"
 )
@@ -75,5 +77,38 @@ func handleGetVSCodeActivity(logger *log.Logger, ac *activity.VSCodeActivityClie
 	return func(c echo.Context) error {
 		logger.Debug("get vscode activity")
 		return c.JSON(http.StatusOK, ac.Activity())
+	}
+}
+
+func handleGetVSCodeActivityWS(logger *log.Logger, ac *activity.VSCodeActivityClient) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
+		if err != nil {
+			logger.Error(err)
+			return err
+		}
+		defer conn.Close()
+
+		acch := make(chan activity.VSCodeActivity, 1)
+		ac.Subscribe(acch)
+		defer ac.Unsubscribe(acch)
+
+		logger.Info("VSC activity client connected")
+
+		for activity := range acch {
+			bytes, err := json.Marshal(activity)
+			if err != nil {
+				logger.Error("json marshal vscode activity", "err", err)
+				break
+			}
+
+			err = conn.WriteMessage(websocket.TextMessage, bytes)
+			if err != nil {
+				logger.Error("Write to websocket", "err", err)
+				break
+			}
+		}
+
+		return c.NoContent(http.StatusOK)
 	}
 }
