@@ -64,9 +64,7 @@ func NewVSCodeActivityClient(logger *log.Logger) *VSCodeActivityClient {
 func (c *VSCodeActivityClient) SetActivity(a VSCodeActivity) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.logger.Debug(a.Filename)
-	a.Filename = filepath.Base(a.Filename)
-	c.logger.Debug(a.Filename)
+	a.Filename = filepath.Base(filepath.Clean(a.Filename))
 	c.activity = a
 	c.lastUpdate = time.Now()
 }
