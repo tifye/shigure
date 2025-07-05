@@ -1,0 +1,26 @@
+meta {
+  name: Set vscode activity
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{host}}/activity/vscode
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "workspace": "azuki-server",
+    "fileName": ".esssnv",
+    "language": "properties",
+    "row": 0,
+    "col": 14,
+    "viewChunk": "ENVIRONMENT=dev"
+  }
+}
