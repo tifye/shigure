@@ -70,6 +70,7 @@ func NewVSCodeActivityClient(logger *log.Logger) *VSCodeActivityClient {
 				for sub := range ac.subscribers {
 					sub <- a
 				}
+				ac.logger.Debug("finished notify subscribers")
 			}
 		}
 	}()

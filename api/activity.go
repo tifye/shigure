@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/charmbracelet/log"
@@ -66,9 +67,9 @@ func handlePostVSCodeActivity(logger *log.Logger, ac *activity.VSCodeActivityCli
 			return err
 		}
 
-		logger.Debug("updating vscode activity", "activity", req)
-		ac.SetActivity(activity.VSCodeActivity(req))
+		logger.Debug("post vscode activity")
 
+		ac.SetActivity(activity.VSCodeActivity(req))
 		return c.NoContent(http.StatusOK)
 	}
 }
@@ -95,18 +96,23 @@ func handleGetVSCodeActivityWS(logger *log.Logger, ac *activity.VSCodeActivityCl
 
 		logger.Info("VSC activity client connected")
 
-		for activity := range acch {
-			bytes, err := json.Marshal(activity)
-			if err != nil {
-				logger.Error("json marshal vscode activity", "err", err)
-				break
-			}
+		go func() {
+			for activity := range acch {
+				bytes, err := json.Marshal(activity)
+				if err != nil {
+					logger.Error("json marshal vscode activity", "err", err)
+				}
 
-			err = conn.WriteMessage(websocket.TextMessage, bytes)
-			if err != nil {
-				logger.Error("Write to websocket", "err", err)
-				break
+				err = conn.WriteMessage(websocket.TextMessage, bytes)
+				if err != nil {
+					logger.Error("Write to websocket", "err", err)
+				}
 			}
+		}()
+
+		_, _, err = conn.ReadMessage()
+		if err != nil && !errors.Is(err, websocket.ErrCloseSent) {
+			logger.Error("vscode acitivty conn", "err", err)
 		}
 
 		return c.NoContent(http.StatusOK)
