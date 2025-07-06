@@ -25,10 +25,10 @@ var defaultAcitivty = VSCodeActivity{
 	Row:       1,
 	Col:       3,
 	CodeChunk: `
-if (Chocola && Vanilla) || Maple {
-	// ヽ(*⌒▽⌒*)ﾉ
-}
-`,
+		if (Chocola && Vanilla) || Maple {
+			// ヽ(*⌒▽⌒*)ﾉ
+		}
+	`,
 }
 
 type VSCodeActivityClient struct {
