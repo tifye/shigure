@@ -54,10 +54,17 @@ func NewVSCodeActivityClient(logger *log.Logger) *VSCodeActivityClient {
 		notify:      make(chan VSCodeActivity),
 	}
 
+	ticker := time.NewTicker(5 * time.Minute)
 	// intentionally run for lifetime
 	go func() {
 		for {
 			select {
+			case <-ticker.C:
+				if time.Since(ac.lastUpdate) >= 15*time.Minute {
+					ac.mu.Lock()
+					ac.activity = defaultAcitivty
+					ac.mu.Unlock()
+				}
 			case sub := <-ac.regch:
 				ac.subscribers[sub] = struct{}{}
 				ac.logger.Info("VSC Activity subscriber added")
@@ -70,7 +77,6 @@ func NewVSCodeActivityClient(logger *log.Logger) *VSCodeActivityClient {
 				for sub := range ac.subscribers {
 					sub <- a
 				}
-				ac.logger.Debug("finished notify subscribers")
 			}
 		}
 	}()
