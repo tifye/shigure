@@ -10,20 +10,22 @@ import (
 )
 
 type VSCodeActivity struct {
-	Workspace string `json:"workspace"`
-	Filename  string `json:"fileName"`
-	Language  string `json:"language"`
-	Row       uint   `json:"row"`
-	Col       uint   `json:"col"`
-	CodeChunk string `json:"viewChunk"`
+	RepositoryURL string `json:"repository,omitempty"`
+	Workspace     string `json:"workspace"`
+	Filename      string `json:"fileName"`
+	Language      string `json:"language"`
+	Row           uint   `json:"row"`
+	Col           uint   `json:"col"`
+	CodeChunk     string `json:"viewChunk"`
 }
 
 var defaultAcitivty = VSCodeActivity{
-	Workspace: "La Soleil",
-	Filename:  "Kitchen",
-	Language:  "Meow",
-	Row:       1,
-	Col:       3,
+	RepositoryURL: "https://github.com/tifye",
+	Workspace:     "La Soleil",
+	Filename:      "Kitchen",
+	Language:      "Meow",
+	Row:           1,
+	Col:           3,
 	CodeChunk: `
 		if (Chocola && Vanilla) || Maple {
 			// ヽ(*⌒▽⌒*)ﾉ
@@ -102,6 +104,8 @@ func (c *VSCodeActivityClient) SetActivity(a VSCodeActivity) {
 	a.Filename = parts[len(parts)-1]
 	c.activity = a
 	c.lastUpdate = time.Now()
+
+	c.logger.Debug(a.RepositoryURL)
 
 	c.notify <- a
 }
