@@ -21,15 +21,21 @@ type VSCodeActivity struct {
 
 var defaultAcitivty = VSCodeActivity{
 	RepositoryURL: "https://github.com/tifye",
-	Workspace:     "La Soleil",
-	Filename:      "Kitchen",
-	Language:      "Meow",
+	Workspace:     "Unknown",
+	Filename:      "inactive.md",
+	Language:      "Probably english",
 	Row:           1,
 	Col:           3,
 	CodeChunk: `
+
+
+
 		if (Chocola && Vanilla) || Maple {
 			// ヽ(*⌒▽⌒*)ﾉ
 		}
+
+
+
 	`,
 }
 
