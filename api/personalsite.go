@@ -54,7 +54,7 @@ func handlePersonalSiteRoom(logger *log.Logger, room *personalsite.RoomHub) echo
 
 		if !req.IsMe {
 			if err = notifyDiscord(c.Request().Context()); err != nil {
-				logger.Error("Failed to send Discord notification", "err", err, "isme", req.IsMe)
+				logger.Error("failed to send Discord notification", "err", err, "isme", req.IsMe)
 			}
 		}
 
@@ -74,7 +74,10 @@ func handlePersonalSiteRoom(logger *log.Logger, room *personalsite.RoomHub) echo
 				break
 			}
 
-			room.UserMessage(user, msg)
+			if err := room.UserMessage(user, msg); err != nil {
+				logger.Error("user message", "err", err, "userId", user.ID)
+				break
+			}
 		}
 
 		return c.NoContent(http.StatusOK)

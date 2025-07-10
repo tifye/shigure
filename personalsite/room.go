@@ -2,6 +2,7 @@ package personalsite
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/charmbracelet/log"
@@ -92,22 +93,22 @@ type broadcastMessage struct {
 	msg  []byte
 }
 
-func (r *RoomHub) UserMessage(u *RoomUser, msg []byte) {
+func (r *RoomHub) UserMessage(u *RoomUser, msg []byte) error {
 	var pdata userPositionData
 	if err := json.Unmarshal(msg, &pdata); err != nil {
-		r.logger.Error("json unmarshal", "err", err)
-		return
+		return fmt.Errorf("json unmarshal: %s", err)
 	}
 
 	pdata.ID = u.ID
 	bmsg, err := json.Marshal(pdata)
 	if err != nil {
-		r.logger.Error("json marshal", "err", err)
-		return
+		return fmt.Errorf("json marshal: %s", err)
 	}
 
 	r.broadcast <- broadcastMessage{
 		user: u,
 		msg:  bmsg,
 	}
+
+	return nil
 }
