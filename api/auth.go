@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -18,7 +19,7 @@ import (
 func verifyToken(c echo.Context, config *viper.Viper) error {
 	authHeader := c.Request().Header.Get("Authorization")
 	if authHeader == "" {
-		return c.NoContent(http.StatusUnauthorized)
+		return fmt.Errorf("missing Authorization header")
 	}
 
 	signingKey := config.GetString("JWT_SIGNING_KEY")
