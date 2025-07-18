@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
+	"github.com/tifye/shigure/assert"
 	"github.com/tifye/shigure/personalsite"
 )
 
@@ -26,7 +27,15 @@ type PositionData struct {
 	Y int `json:"y"`
 }
 
-func handlePersonalSiteRoom(logger *log.Logger, room *personalsite.RoomHub) echo.HandlerFunc {
+func handlePersonalSiteRoom(
+	logger *log.Logger,
+	room *personalsite.RoomHub,
+	discordWebhookURL string,
+) echo.HandlerFunc {
+	assert.AssertNotNil(logger)
+	assert.AssertNotNil(room)
+	assert.AssertNotEmpty(discordWebhookURL)
+
 	type request struct {
 		IsMe bool `query:"isme"`
 	}
@@ -53,7 +62,7 @@ func handlePersonalSiteRoom(logger *log.Logger, room *personalsite.RoomHub) echo
 		logger.Info("Client connected", "isme", req.IsMe)
 
 		if !req.IsMe {
-			if err = notifyDiscord(c.Request().Context()); err != nil {
+			if err = notifyDiscord(c.Request().Context(), discordWebhookURL); err != nil {
 				logger.Error("failed to send Discord notification", "err", err, "isme", req.IsMe)
 			}
 		}
@@ -84,19 +93,17 @@ func handlePersonalSiteRoom(logger *log.Logger, room *personalsite.RoomHub) echo
 	}
 }
 
-const discordWebhookURL = "https://discord.com/api/webhooks/1386429934603468901/q9lyRkp0812_HbHrG1ZjRNIghZILETgxVtP5yEvUEv7CugBgTLafsrkNqANP3rxSZDf9"
-
 type webhookBody struct {
 	Content string `json:"content"`
 }
 
-func notifyDiscord(ctx context.Context) error {
+func notifyDiscord(ctx context.Context, webhookURL string) error {
 	body := webhookBody{Content: "Someone joined the room https://www.joshuadematas.me"}
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		return fmt.Errorf("marhsall body: %s", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, "POST", discordWebhookURL, bytes.NewReader(bodyBytes))
+	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return err
 	}
