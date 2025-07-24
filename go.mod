@@ -9,8 +9,10 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.13.3
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pquerna/otp v1.4.0
 	github.com/spf13/viper v1.19.0
+	github.com/stretchr/testify v1.10.0
 	golang.org/x/time v0.9.0
 )
 
@@ -43,7 +45,6 @@ require (
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect

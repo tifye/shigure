@@ -3,9 +3,9 @@ package stream
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"sync"
-	"sync/atomic"
 
 	"github.com/charmbracelet/log"
 	"github.com/tifye/shigure/assert"
@@ -19,8 +19,7 @@ const (
 type ID = uint32
 
 type Mux struct {
-	logger    *log.Logger
-	idCounter atomic.Uint32
+	logger *log.Logger
 
 	handlers        map[MessageType]func(id ID, data []byte) error
 	disconnectHooks []func(id ID)
@@ -46,8 +45,7 @@ func NewMux() *Mux {
 }
 
 func (m *Mux) Connect(write func(id ID, data []byte)) ID {
-	id := m.idCounter.Add(1)
-	assert.Assert(id < 10_000, fmt.Sprintf("id counter too high: %d", id))
+	id := rand.Uint32()
 
 	user := &User{
 		id:     id,
@@ -74,8 +72,6 @@ func (m *Mux) Connect(write func(id ID, data []byte)) ID {
 }
 
 func (m *Mux) Disconnect(id ID) error {
-	assert.Assert(id < 10_000, fmt.Sprintf("invalid id passed: %d", id))
-
 	m.usersMu.Lock()
 	delete(m.users, id)
 	m.usersMu.Unlock()
@@ -159,6 +155,35 @@ func (m *Mux) UserMessage(id ID, data []byte) error {
 	return nil
 }
 
+func (m *Mux) SendMessage(id ID, typ string, payload []byte) error {
+	assert.AssertNotEmpty(typ)
+	assert.Assert(len(payload) < MessageSizeLimit, fmt.Sprintf("message too big: %d", len(payload)))
+	assert.Assert(len(typ) <= MessageTypeLen, "message type too long")
+
+	msg := Message{
+		Type:   typ,
+		Paylod: payload,
+	}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("json marshal: %s", err)
+	}
+
+	m.usersMu.RLock()
+	user, ok := m.users[id]
+	m.usersMu.RUnlock()
+
+	if !ok {
+		return fmt.Errorf("no user found with id %d", id)
+	}
+
+	if user.writer != nil {
+		user.writer(id, data)
+	}
+
+	return nil
+}
+
 func (m *Mux) Broadcast(typ string, payload []byte, filter func(id ID) bool) error {
 	assert.AssertNotEmpty(typ)
 	assert.Assert(len(payload) < MessageSizeLimit, fmt.Sprintf("message too big: %d", len(payload)))
@@ -180,13 +205,13 @@ func (m *Mux) Broadcast(typ string, payload []byte, filter func(id ID) bool) err
 	}
 
 	m.usersMu.RLock()
-	for _, sesh := range m.users {
-		if sesh.writer == nil {
+	for _, user := range m.users {
+		if user.writer == nil {
 			continue
 		}
 
-		if filter(sesh.id) {
-			sesh.writer(sesh.id, data)
+		if filter(user.id) {
+			user.writer(user.id, data)
 		}
 	}
 	m.usersMu.RUnlock()
