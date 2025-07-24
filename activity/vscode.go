@@ -1,12 +1,14 @@
 package activity
 
 import (
+	"encoding/json"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/tifye/shigure/assert"
+	"github.com/tifye/shigure/stream"
 )
 
 type VSCodeActivity struct {
@@ -40,64 +42,39 @@ var defaultAcitivty = VSCodeActivity{
 }
 
 type VSCodeActivityClient struct {
-	logger      *log.Logger
-	activity    VSCodeActivity
-	lastUpdate  time.Time
-	mu          sync.RWMutex
-	subscribers map[chan<- VSCodeActivity]struct{}
-	regch       chan chan<- VSCodeActivity
-	unregch     chan chan<- VSCodeActivity
-	notify      chan VSCodeActivity
+	logger     *log.Logger
+	activity   VSCodeActivity
+	lastUpdate time.Time
+	mu         sync.RWMutex
+
+	mux            *stream.Mux
+	muxMessageType string
 }
 
-func NewVSCodeActivityClient(logger *log.Logger) *VSCodeActivityClient {
+func NewVSCodeActivityClient(logger *log.Logger, mux *stream.Mux) *VSCodeActivityClient {
 	assert.AssertNotNil(logger)
+	assert.AssertNotNil(mux)
 
 	ac := &VSCodeActivityClient{
-		logger:      logger,
-		activity:    defaultAcitivty,
-		subscribers: map[chan<- VSCodeActivity]struct{}{},
-		regch:       make(chan chan<- VSCodeActivity),
-		unregch:     make(chan chan<- VSCodeActivity),
-		notify:      make(chan VSCodeActivity),
+		logger:         logger,
+		mux:            mux,
+		muxMessageType: "vscode",
+		activity:       defaultAcitivty,
 	}
 
 	ticker := time.NewTicker(5 * time.Minute)
 	// intentionally run for lifetime
 	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				if time.Since(ac.lastUpdate) >= 15*time.Minute {
-					ac.mu.Lock()
-					ac.activity = defaultAcitivty
-					ac.mu.Unlock()
-				}
-			case sub := <-ac.regch:
-				ac.subscribers[sub] = struct{}{}
-				ac.logger.Info("VSC Activity subscriber added")
-			case sub := <-ac.unregch:
-				close(sub)
-				delete(ac.subscribers, sub)
-				ac.logger.Info("VSC Activity subscriber removed")
-			case a := <-ac.notify:
-				ac.logger.Debug("notifying subscribers")
-				for sub := range ac.subscribers {
-					sub <- a
-				}
+		for range ticker.C {
+			if time.Since(ac.lastUpdate) >= 15*time.Minute {
+				ac.mu.Lock()
+				ac.activity = defaultAcitivty
+				ac.mu.Unlock()
 			}
 		}
 	}()
 
 	return ac
-}
-
-func (r *VSCodeActivityClient) Subscribe(sub chan<- VSCodeActivity) {
-	r.regch <- sub
-}
-
-func (r *VSCodeActivityClient) Unsubscribe(sub chan<- VSCodeActivity) {
-	r.regch <- sub
 }
 
 func (c *VSCodeActivityClient) SetActivity(a VSCodeActivity) {
@@ -113,7 +90,13 @@ func (c *VSCodeActivityClient) SetActivity(a VSCodeActivity) {
 
 	c.logger.Debug(a.RepositoryURL)
 
-	c.notify <- a
+	msgb, err := json.Marshal(a)
+	if err != nil {
+		c.logger.Error("marshal vscode activity", "err", err, "activity", a)
+		return
+	}
+
+	c.mux.Broadcast(c.muxMessageType, msgb, nil)
 }
 
 func (c *VSCodeActivityClient) Activity() VSCodeActivity {

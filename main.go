@@ -86,9 +86,11 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (*api.ServerDepen
 	mux.RegisterHandler(room.MessageType(), room.HandleMessage)
 	mux.RegisterDisconnectHook(room.HandleDisconnect)
 
+	vsc := activity.NewVSCodeActivityClient(logger.WithPrefix("vscode"), mux)
+
 	return &api.ServerDependencies{
 		ActivityClient:       activity.NewClient(logger.WithPrefix("youtube"), youtubeApiKey),
-		VSCodeActivityClient: activity.NewVSCodeActivityClient(logger.WithPrefix("vscode")),
+		VSCodeActivityClient: vsc,
 		WSMux:                mux,
 	}, nil
 }
