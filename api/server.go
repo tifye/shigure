@@ -9,14 +9,15 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/viper"
 	"github.com/tifye/shigure/activity"
-	"github.com/tifye/shigure/personalsite"
+	"github.com/tifye/shigure/stream"
 	"golang.org/x/time/rate"
 )
 
 type ServerDependencies struct {
 	ActivityClient       *activity.Client
 	VSCodeActivityClient *activity.VSCodeActivityClient
-	RoomHub              *personalsite.RoomHub
+	// RoomHub              *personalsite.RoomHub
+	WSMux *stream.Mux
 }
 
 func NewServer(logger *log.Logger, config *viper.Viper, deps *ServerDependencies) *http.Server {
