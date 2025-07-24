@@ -14,7 +14,7 @@ import (
 	"github.com/tifye/shigure/stream"
 )
 
-type RoomHubV2 struct {
+type RoomHub struct {
 	logger         *log.Logger
 	mux            *stream.Mux
 	muxMessageType string
@@ -29,11 +29,11 @@ type RoomHubV2 struct {
 	notifMu    sync.RWMutex
 }
 
-func NewRoomHubV2(logger *log.Logger, mux *stream.Mux, webhookURL string) *RoomHubV2 {
+func NewRoomHubV2(logger *log.Logger, mux *stream.Mux, webhookURL string) *RoomHub {
 	assert.AssertNotNil(logger)
 	assert.AssertNotNil(mux)
 	assert.AssertNotEmpty(webhookURL)
-	return &RoomHubV2{
+	return &RoomHub{
 		logger:         logger,
 		mux:            mux,
 		muxMessageType: "room",
@@ -42,14 +42,18 @@ func NewRoomHubV2(logger *log.Logger, mux *stream.Mux, webhookURL string) *RoomH
 	}
 }
 
-func (r *RoomHubV2) MessageType() string {
+func (r *RoomHub) MessageType() string {
 	return r.muxMessageType
 }
 
-func (r *RoomHubV2) HandleMessage(id stream.ID, msg []byte) error {
+func (r *RoomHub) HandleMessage(id stream.ID, msg []byte) error {
 	var pdata userPositionData
 	if err := json.Unmarshal(msg, &pdata); err != nil {
 		return fmt.Errorf("json unmarshal: %s", err)
+	}
+
+	if pdata.Unreg {
+		return r.broadcastDisconnect(id)
 	}
 
 	pdata.ID = id
@@ -79,7 +83,14 @@ func (r *RoomHubV2) HandleMessage(id stream.ID, msg []byte) error {
 	})
 }
 
-func (r *RoomHubV2) HandleDisconnect(id stream.ID) {
+func (r *RoomHub) HandleDisconnect(id stream.ID) {
+	err := r.broadcastDisconnect(id)
+	if err != nil {
+		r.logger.Error("broadcast disconnect", "type", r.muxMessageType, "id", id)
+	}
+}
+
+func (r *RoomHub) broadcastDisconnect(id stream.ID) error {
 	msg := userUnregistered{
 		ID:    id,
 		Unreg: true,
@@ -90,10 +101,8 @@ func (r *RoomHubV2) HandleDisconnect(id stream.ID) {
 		r.logger.Error("ungregister json marshal", "err", err, "id", id)
 	}
 
-	err = r.mux.Broadcast(r.muxMessageType, msgb, filterUser(id))
-	if err != nil {
-		r.logger.Error("broadcast", "type", r.muxMessageType, "id", id, "msg", string(msgb))
-	}
+	return r.mux.Broadcast(r.muxMessageType, msgb, filterUser(id))
+
 }
 
 func filterUser(id stream.ID) func(stream.ID) bool {
@@ -108,7 +117,8 @@ type positionData struct {
 }
 
 type userPositionData struct {
-	ID uint32 `json:"id"`
+	ID    uint32 `json:"id"`
+	Unreg bool   `json:"delete,omitzero"`
 	positionData
 }
 
