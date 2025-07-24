@@ -21,9 +21,14 @@ type ID = uint32
 type Mux struct {
 	logger    *log.Logger
 	idCounter atomic.Uint32
-	sessions  map[ID]*User
-	handlers  map[MessageType]func(id ID, data []byte) error
-	smu       sync.RWMutex
+
+	handlers        map[MessageType]func(id ID, data []byte) error
+	disconnectHooks []func(id ID)
+	connectHooks    []func(id ID, sesh *User)
+	handlersMu      sync.RWMutex
+
+	users   map[ID]*User
+	usersMu sync.RWMutex
 }
 
 // todo: user connect hook
@@ -33,8 +38,10 @@ func NewMux() *Mux {
 			ReportTimestamp: false,
 			Level:           log.DebugLevel,
 		}),
-		sessions: map[ID]*User{},
-		handlers: map[MessageType]func(id ID, data []byte) error{},
+		users:           map[ID]*User{},
+		handlers:        map[MessageType]func(id ID, data []byte) error{},
+		connectHooks:    []func(id ID, sesh *User){},
+		disconnectHooks: []func(id ID){},
 	}
 }
 
@@ -42,16 +49,26 @@ func (m *Mux) Connect(write func(id ID, data []byte)) ID {
 	id := m.idCounter.Add(1)
 	assert.Assert(id < 10_000, fmt.Sprintf("id counter too high: %d", id))
 
-	sesh := &User{
+	user := &User{
 		id:     id,
 		writer: write,
 	}
 
-	m.smu.Lock()
-	_, exists := m.sessions[id]
-	assert.Assert(!exists, fmt.Sprintf("session with id %d already exists", id))
-	m.sessions[id] = sesh
-	m.smu.Unlock()
+	m.usersMu.Lock()
+	_, exists := m.users[id]
+	m.users[id] = user
+	m.usersMu.Unlock()
+	assert.Assert(!exists, fmt.Sprintf("session with id %d already existed", id))
+
+	m.handlersMu.RLock()
+	hooks := make([]func(ID, *User), len(m.connectHooks))
+	copy(hooks, m.connectHooks)
+	m.handlersMu.RUnlock()
+
+	for _, hook := range hooks {
+		assert.AssertNotNil(hook)
+		hook(id, user)
+	}
 
 	return id
 }
@@ -59,9 +76,19 @@ func (m *Mux) Connect(write func(id ID, data []byte)) ID {
 func (m *Mux) Disconnect(id ID) error {
 	assert.Assert(id < 10_000, fmt.Sprintf("invalid id passed: %d", id))
 
-	m.smu.Lock()
-	delete(m.sessions, id)
-	m.smu.Unlock()
+	m.usersMu.Lock()
+	delete(m.users, id)
+	m.usersMu.Unlock()
+
+	m.handlersMu.RLock()
+	hooks := make([]func(ID), len(m.disconnectHooks))
+	copy(hooks, m.disconnectHooks)
+	m.handlersMu.RUnlock()
+
+	for _, hook := range hooks {
+		assert.AssertNotNil(hook)
+		hook(id)
+	}
 
 	return nil
 }
@@ -73,9 +100,25 @@ func (m *Mux) RegisterHandler(typ string, handler func(id ID, data []byte) error
 	mtype := [16]byte{}
 	copy(mtype[:], []byte(typ)[:])
 
-	m.smu.Lock()
+	m.handlersMu.Lock()
 	m.handlers[mtype] = handler
-	m.smu.Unlock()
+	m.handlersMu.Unlock()
+}
+
+func (m *Mux) RegisterDisconnectHook(hook func(id ID)) {
+	assert.AssertNotNil(hook)
+
+	m.handlersMu.Lock()
+	m.disconnectHooks = append(m.disconnectHooks, hook)
+	m.handlersMu.Unlock()
+}
+
+func (m *Mux) RegisterConnectHook(hook func(id ID, user *User)) {
+	assert.AssertNotNil(hook)
+
+	m.handlersMu.Lock()
+	m.connectHooks = append(m.connectHooks, hook)
+	m.handlersMu.Unlock()
 }
 
 type MessageType [MessageTypeLen]byte
@@ -136,8 +179,8 @@ func (m *Mux) Broadcast(typ string, payload []byte, filter func(id ID) bool) err
 		filter = func(id ID) bool { return true }
 	}
 
-	m.smu.RLock()
-	for _, sesh := range m.sessions {
+	m.usersMu.RLock()
+	for _, sesh := range m.users {
 		if sesh.writer == nil {
 			continue
 		}
@@ -146,7 +189,7 @@ func (m *Mux) Broadcast(typ string, payload []byte, filter func(id ID) bool) err
 			sesh.writer(sesh.id, data)
 		}
 	}
-	m.smu.RUnlock()
+	m.usersMu.RUnlock()
 
 	return nil
 }

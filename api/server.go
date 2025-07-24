@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/viper"
@@ -13,11 +14,18 @@ import (
 	"golang.org/x/time/rate"
 )
 
+var (
+	upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+)
+
 type ServerDependencies struct {
 	ActivityClient       *activity.Client
 	VSCodeActivityClient *activity.VSCodeActivityClient
-	// RoomHub              *personalsite.RoomHub
-	WSMux *stream.Mux
+	WSMux                *stream.Mux
 }
 
 func NewServer(logger *log.Logger, config *viper.Viper, deps *ServerDependencies) *http.Server {

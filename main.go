@@ -80,18 +80,15 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (*api.ServerDepen
 	youtubeApiKey := config.GetString("YOUTUBE_DATA_API_KEY")
 	assert.AssertNotEmpty(youtubeApiKey)
 
-	// rh := personalsite.NewRoomHub(logger.WithPrefix("room"))
-	// go rh.Run()
-
 	mux := stream.NewMux()
 
-	rhv2 := personalsite.NewRoomHubV2(logger.WithPrefix("room-v2"), mux)
-	mux.RegisterHandler("room", rhv2.HandleMessage)
+	room := personalsite.NewRoomHubV2(logger.WithPrefix("room-v2"), mux, config.GetString("DISCORD_WEBHOOK_URL"))
+	mux.RegisterHandler(room.MessageType(), room.HandleMessage)
+	mux.RegisterDisconnectHook(room.HandleDisconnect)
 
 	return &api.ServerDependencies{
 		ActivityClient:       activity.NewClient(logger.WithPrefix("youtube"), youtubeApiKey),
 		VSCodeActivityClient: activity.NewVSCodeActivityClient(logger.WithPrefix("vscode")),
-		// RoomHub:              rh,
-		WSMux: mux,
+		WSMux:                mux,
 	}, nil
 }
