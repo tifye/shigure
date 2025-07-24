@@ -41,7 +41,7 @@ func handleWebsocketConn(logger *log.Logger, mux *stream.Mux) echo.HandlerFunc {
 				break
 			}
 
-			logger.Debug("ws message", "messge", string(msg))
+			logger.Debug("ws message", "msg", string(msg))
 
 			if err = mux.UserMessage(id, msg); err != nil {
 				logger.Errorf("mux user message: %s", err)

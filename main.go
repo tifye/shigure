@@ -16,6 +16,7 @@ import (
 	"github.com/tifye/shigure/activity"
 	"github.com/tifye/shigure/api"
 	"github.com/tifye/shigure/assert"
+	"github.com/tifye/shigure/discord"
 	"github.com/tifye/shigure/personalsite"
 	"github.com/tifye/shigure/stream"
 )
@@ -51,10 +52,15 @@ func run(ctx context.Context, logger *log.Logger, config *viper.Viper) error {
 		return fmt.Errorf("net listen: %s", err)
 	}
 
-	deps, err := initDependencies(logger, config)
+	deps, cfs, err := initDependencies(logger, config)
 	if err != nil {
 		return fmt.Errorf("init deps: %s", err)
 	}
+	defer func() {
+		if err := cfs.Cleanup(); err != nil {
+			logger.Error("cleanup funcs", "err", err)
+		}
+	}()
 
 	s := api.NewServer(logger, config, deps)
 	go func() {
@@ -76,7 +82,17 @@ func run(ctx context.Context, logger *log.Logger, config *viper.Viper) error {
 	return nil
 }
 
-func initDependencies(logger *log.Logger, config *viper.Viper) (*api.ServerDependencies, error) {
+func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.ServerDependencies, cfs CleanupFuncs, err error) {
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		if ferr := cfs.Cleanup(); ferr != nil {
+			err = errors.Join(err, ferr)
+		}
+	}()
+
 	youtubeApiKey := config.GetString("YOUTUBE_DATA_API_KEY")
 	assert.AssertNotEmpty(youtubeApiKey)
 
@@ -88,9 +104,31 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (*api.ServerDepen
 
 	vsc := activity.NewVSCodeActivityClient(logger.WithPrefix("vscode"), mux)
 
+	discordBot, err := discord.NewChatBot(
+		logger.WithPrefix("chatbot"),
+		config.GetString("DISCORD_BOT_TOKEN"),
+		config.GetString("DISCORD_GUILD_ID"),
+		config.GetString("DISCORD_CHAT_CATEGORY_ID"),
+		mux,
+	)
+	if err != nil {
+		// todo: be able to start without certain services marking them as "unavailable"
+		return nil, cfs, fmt.Errorf("new discord bot: %s", err)
+	}
+	if err := discordBot.Start(); err != nil {
+		return nil, cfs, fmt.Errorf("init discord bot: %s", err)
+	}
+	cfs.Defer(func() error {
+		if err := discordBot.Stop(); err != nil {
+			return fmt.Errorf("close discord bot: %s", err)
+		}
+		return nil
+	})
+	mux.RegisterHandler(discordBot.MessageType(), discordBot.HandleMessage)
+
 	return &api.ServerDependencies{
 		ActivityClient:       activity.NewClient(logger.WithPrefix("youtube"), youtubeApiKey),
 		VSCodeActivityClient: vsc,
 		WSMux:                mux,
-	}, nil
+	}, cfs, nil
 }
