@@ -30,7 +30,6 @@ type Mux struct {
 	usersMu sync.RWMutex
 }
 
-// todo: user connect hook
 func NewMux() *Mux {
 	return &Mux{
 		logger: log.NewWithOptions(os.Stdout, log.Options{

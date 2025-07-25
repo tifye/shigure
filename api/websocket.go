@@ -9,38 +9,30 @@ import (
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/tifye/shigure/assert"
-	"github.com/tifye/shigure/stream"
-)
-
-const (
-	streamIDSessionKey = "streamID"
+	"github.com/tifye/shigure/mux"
 )
 
 func handleWebsocketConn(
 	logger *log.Logger,
-	mux *stream.Mux,
+	mx *mux.Mux,
 	newSessionCookie func(s *sessions.Session) (*http.Cookie, error),
 ) echo.HandlerFunc {
 	assert.AssertNotNil(logger)
-	assert.AssertNotNil(mux)
+	assert.AssertNotNil(mx)
 
 	return func(c echo.Context) error {
-		var id stream.ID
-
 		session, err := session.Get("session", c)
 		if err != nil {
 			logger.Error("get session", "err", err)
-		} else {
-			streamID, exists := session.Values[streamIDSessionKey]
-			if exists {
-				id, _ = streamID.(stream.ID)
-			}
 		}
 
 		// trigger save to ensure session has an ID
 		if err := session.Save(c.Request(), c.Response()); err != nil {
 			logger.Error("save session for ID", "err", err)
 		}
+
+		var sessionID mux.ID
+		copy(sessionID[:], []byte(session.ID))
 
 		responseHeader := http.Header{}
 		sessionCookie, err := newSessionCookie(session)
@@ -58,43 +50,19 @@ func handleWebsocketConn(
 		}
 		defer conn.Close()
 
-		writeFunc := func(id stream.ID, data []byte) {
-			err := conn.WriteMessage(websocket.TextMessage, data)
-			if err != nil {
-				logger.Error("write to websocket", "id", id, "err", err)
-			}
-		}
-
-		if id == 0 {
-			id = mux.Connect(writeFunc)
-		} else {
-			if err := mux.Reconnect(id, writeFunc); err != nil {
-				logger.Error("reconnect stream", "err", err, "id", id)
-				id = mux.Connect(writeFunc)
-			}
-		}
-		defer func() {
-			if err := mux.Disconnect(id); err != nil {
-				logger.Error("websocket mux disconnect", "err", err, "id", id)
-			}
-		}()
-
-		if session != nil {
-			session.Values[streamIDSessionKey] = id
-			if err := session.Save(c.Request(), c.Response()); err != nil {
-				logger.Error("save session", "err", err)
-			}
-			logger.Debug("session saved", "sessionName", session.ID)
-		}
+		channelID := mx.Connect(sessionID, WriterFunc(func(data []byte) (n int, err error) {
+			return len(data), conn.WriteMessage(websocket.TextMessage, data)
+		}))
+		defer mx.Disconnect(sessionID, channelID)
 
 		for {
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
-				logger.Debug("ws read", "err", err, "id", id)
+				logger.Debug("ws read", "err", err, "id", sessionID)
 				break
 			}
 
-			if err = mux.UserMessage(id, msg); err != nil {
+			if err = mx.Message(sessionID, channelID, msg); err != nil {
 				logger.Errorf("mux user message: %s", err)
 				break
 			}
@@ -102,4 +70,10 @@ func handleWebsocketConn(
 
 		return c.NoContent(http.StatusOK)
 	}
+}
+
+type WriterFunc func(data []byte) (n int, err error)
+
+func (f WriterFunc) Write(data []byte) (n int, err error) {
+	return f(data)
 }

@@ -2,8 +2,10 @@ package discord
 
 import (
 	"context"
+	"encoding/base32"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,7 +13,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/patrickmn/go-cache"
 	"github.com/tifye/shigure/assert"
-	"github.com/tifye/shigure/stream"
+	"github.com/tifye/shigure/mux"
 )
 
 const (
@@ -30,9 +32,9 @@ type ChatBot struct {
 	chatCategoryID string
 
 	mu             sync.RWMutex
-	userChannelIDs map[string]stream.ID
+	userChannelIDs map[string]mux.ID
 
-	mux            *stream.Mux
+	mux            *mux.Mux
 	muxMessageType string
 
 	cache *cache.Cache
@@ -41,13 +43,13 @@ type ChatBot struct {
 func NewChatBot(
 	logger *log.Logger,
 	token, guildID, chatCategoryID string,
-	mux *stream.Mux,
+	mx *mux.Mux,
 ) (*ChatBot, error) {
 	assert.AssertNotNil(logger)
 	assert.AssertNotEmpty(token)
 	assert.AssertNotEmpty(guildID)
 	assert.AssertNotEmpty(chatCategoryID)
-	assert.AssertNotNil(mux)
+	assert.AssertNotNil(mx)
 
 	sesh, err := discordgo.New(token)
 	if err != nil {
@@ -59,8 +61,8 @@ func NewChatBot(
 		sesh:           sesh,
 		guildID:        guildID,
 		chatCategoryID: chatCategoryID,
-		userChannelIDs: map[string]stream.ID{},
-		mux:            mux,
+		userChannelIDs: map[string]mux.ID{},
+		mux:            mx,
 		muxMessageType: "chat",
 		cache:          cache.New(30*time.Minute, 60*time.Minute),
 	}
@@ -78,24 +80,26 @@ func (b *ChatBot) handleDiscordMessage(s *discordgo.Session, i *discordgo.Messag
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	b.mu.RLock()
-	userID, ok := b.userChannelIDs[i.ChannelID]
-	b.mu.RUnlock()
-
-	if !ok {
-		return
-	}
-
 	ch, err := b.channel(ctx, i.ChannelID, channelIDFilter(i.ChannelID))
 	if err != nil {
 		b.logger.Error("get channel", "err", err, "channelID", i.ChannelID)
 		return
 	}
 	assert.AssertNotNil(ch)
+	if ch.ParentID != b.chatCategoryID {
+		return
+	}
+
+	muxSessionID, err := decodeChannelNameToMuxID(ch.Name)
+	if err != nil {
+		b.logger.Warn("failed to decode Discord channel name to a mux.ID", "channelName", ch.Name)
+		return
+	}
 
 	msg := message{
 		Type: "message",
 		Payload: messagePayload{
+			Actor:   "joshua",
 			Message: i.Message.Content,
 		},
 	}
@@ -104,9 +108,9 @@ func (b *ChatBot) handleDiscordMessage(s *discordgo.Session, i *discordgo.Messag
 		b.logger.Error("marshal message", "err", err, "msg", msg)
 	}
 
-	err = b.mux.SendMessage(userID, b.muxMessageType, msgb)
+	err = b.mux.SendSession(muxSessionID, b.muxMessageType, msgb, nil)
 	if err != nil {
-		b.logger.Error("send message", "err", err, "id", userID, "msg", string(msgb))
+		b.logger.Error("send message", "err", err, "channelID", muxSessionID, "msg", string(msgb))
 	}
 }
 
@@ -123,6 +127,7 @@ func (b *ChatBot) Stop() error {
 }
 
 type messagePayload struct {
+	Actor   string `json:"actor"`
 	Message string `json:"message"`
 }
 
@@ -131,8 +136,9 @@ type message struct {
 	Payload messagePayload `json:"payload"`
 }
 
-func (b *ChatBot) HandleMessage(id stream.ID, data []byte) error {
-	b.logger.Debug("message", "id", id, "msg", string(data))
+func (b *ChatBot) HandleMessage(c *mux.Channel, data []byte) error {
+	muxID := c.Session().ID()
+	b.logger.Debug("message", "id", muxID, "msg", string(data))
 
 	var msg message
 	if err := json.Unmarshal(data, &msg); err != nil {
@@ -152,14 +158,21 @@ func (b *ChatBot) HandleMessage(id stream.ID, data []byte) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	userCh, err := b.userChannel(ctx, id)
+	userCh, err := b.userChannel(ctx, muxID)
 	if err != nil {
 		return err
 	}
 
 	b.mu.Lock()
-	b.userChannelIDs[userCh.ID] = id
+	b.userChannelIDs[userCh.ID] = muxID
 	b.mu.Unlock()
+
+	err = b.mux.SendSession(c.Session().ID(), b.muxMessageType, data, func(ch *mux.Channel) bool {
+		return c.ID() == ch.ID()
+	})
+	if err != nil {
+		b.logger.Error("failed to session to other channels", "sessionID", c.Session().ID(), "channelID", c.ID(), "msg", string(data))
+	}
 
 	_, err = b.sesh.ChannelMessageSend(userCh.ID, msg.Payload.Message, discordgo.WithContext(ctx))
 	if err != nil {
@@ -179,7 +192,7 @@ func (b *ChatBot) siteChatsChannel(ctx context.Context) (*discordgo.Channel, err
 	return ch, nil
 }
 
-func (b *ChatBot) userChannel(ctx context.Context, id stream.ID) (*discordgo.Channel, error) {
+func (b *ChatBot) userChannel(ctx context.Context, id mux.ID) (*discordgo.Channel, error) {
 	cacheKey := userChannelCacheKey(id)
 	ch, err := b.channel(ctx, cacheKey, channelNameFilter(cacheKey))
 	if err != nil {
@@ -248,6 +261,29 @@ func channelIDFilter(id string) func(c *discordgo.Channel) bool {
 	}
 }
 
-func userChannelCacheKey(id stream.ID) string {
-	return fmt.Sprintf("%s%d", userChannelCacheKeyPrefix, id)
+func userChannelCacheKey(id mux.ID) string {
+	return encodeMuxIDToChannelName(id)
+}
+
+func encodeMuxIDToChannelName(input mux.ID) string {
+	encoder := base32.StdEncoding.WithPadding(base32.NoPadding)
+	encoded := encoder.EncodeToString(input[:])
+	encoded = strings.ToLower(encoded)
+	return userChannelCacheKeyPrefix + encoded
+}
+
+func decodeChannelNameToMuxID(channelName string) (mux.ID, error) {
+	var result mux.ID
+	trimmed := strings.TrimPrefix(channelName, userChannelCacheKeyPrefix)
+	upper := strings.ToUpper(trimmed) // base32 expects uppercase
+	decoder := base32.StdEncoding.WithPadding(base32.NoPadding)
+	decoded, err := decoder.DecodeString(upper)
+	if err != nil {
+		return result, err
+	}
+	if len(decoded) != 16 {
+		return result, fmt.Errorf("invalid length: got %d bytes", len(decoded))
+	}
+	copy(result[:], decoded)
+	return result, nil
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/tifye/shigure/assert"
-	"github.com/tifye/shigure/stream"
+	"github.com/tifye/shigure/mux"
 )
 
 type VSCodeActivity struct {
@@ -47,11 +47,11 @@ type VSCodeActivityClient struct {
 	lastUpdate time.Time
 	mu         sync.RWMutex
 
-	mux            *stream.Mux
+	mux            *mux.Mux
 	muxMessageType string
 }
 
-func NewVSCodeActivityClient(logger *log.Logger, mux *stream.Mux) *VSCodeActivityClient {
+func NewVSCodeActivityClient(logger *log.Logger, mux *mux.Mux) *VSCodeActivityClient {
 	assert.AssertNotNil(logger)
 	assert.AssertNotNil(mux)
 
@@ -75,6 +75,14 @@ func NewVSCodeActivityClient(logger *log.Logger, mux *stream.Mux) *VSCodeActivit
 	}()
 
 	return ac
+}
+
+func (c *VSCodeActivityClient) MessageType() string {
+	return c.muxMessageType
+}
+
+func (c *VSCodeActivityClient) HandleMessage(_ *mux.Channel, _ []byte) error {
+	return nil
 }
 
 func (c *VSCodeActivityClient) SetActivity(a VSCodeActivity) {

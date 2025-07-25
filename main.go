@@ -19,8 +19,8 @@ import (
 	"github.com/tifye/shigure/api"
 	"github.com/tifye/shigure/assert"
 	"github.com/tifye/shigure/discord"
+	"github.com/tifye/shigure/mux"
 	"github.com/tifye/shigure/personalsite"
-	"github.com/tifye/shigure/stream"
 )
 
 func main() {
@@ -98,20 +98,20 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 	youtubeApiKey := config.GetString("YOUTUBE_DATA_API_KEY")
 	assert.AssertNotEmpty(youtubeApiKey)
 
-	mux := stream.NewMux()
+	mux2 := mux.NewMux(logger.WithPrefix("mux"))
 
-	room := personalsite.NewRoomHubV2(logger.WithPrefix("room-v2"), mux, config.GetString("DISCORD_WEBHOOK_URL"))
-	mux.RegisterHandler(room.MessageType(), room.HandleMessage)
-	mux.RegisterDisconnectHook(room.HandleDisconnect)
+	room := personalsite.NewRoomHubV2(logger.WithPrefix("room-v2"), mux2, config.GetString("DISCORD_WEBHOOK_URL"))
+	mux2.RegisterHandler(room.MessageType(), room)
 
-	vsc := activity.NewVSCodeActivityClient(logger.WithPrefix("vscode"), mux)
+	vsc := activity.NewVSCodeActivityClient(logger.WithPrefix("vscode"), mux2)
+	mux2.RegisterHandler(vsc.MessageType(), vsc)
 
 	discordBot, err := discord.NewChatBot(
 		logger.WithPrefix("chatbot"),
 		config.GetString("DISCORD_BOT_TOKEN"),
 		config.GetString("DISCORD_GUILD_ID"),
 		config.GetString("DISCORD_CHAT_CATEGORY_ID"),
-		mux,
+		mux2,
 	)
 	if err != nil {
 		// todo: be able to start without certain services marking them as "unavailable"
@@ -126,7 +126,7 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 		}
 		return nil
 	})
-	mux.RegisterHandler(discordBot.MessageType(), discordBot.HandleMessage)
+	mux2.RegisterHandler(discordBot.MessageType(), discordBot)
 
 	sessionStore := sessions.NewFilesystemStore("", []byte(config.GetString("OTP_SECRET")))
 	newSessionCookie := func(s *sessions.Session) (*http.Cookie, error) {
@@ -140,7 +140,7 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 	return &api.ServerDependencies{
 		ActivityClient:       activity.NewClient(logger.WithPrefix("youtube"), youtubeApiKey),
 		VSCodeActivityClient: vsc,
-		WSMux:                mux,
+		WebSocketMux:         mux2,
 		SessionStore:         sessionStore,
 		NewSessionCookie:     newSessionCookie,
 	}, cfs, nil

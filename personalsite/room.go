@@ -11,12 +11,12 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/tifye/shigure/assert"
-	"github.com/tifye/shigure/stream"
+	"github.com/tifye/shigure/mux"
 )
 
 type RoomHub struct {
 	logger         *log.Logger
-	mux            *stream.Mux
+	mux            *mux.Mux
 	muxMessageType string
 
 	// Discord webhook URL to notify
@@ -25,20 +25,20 @@ type RoomHub struct {
 
 	// Keeps track of which users
 	// we have already notified about
-	userNotifs map[stream.ID]struct{}
+	userNotifs map[mux.ID]struct{}
 	notifMu    sync.RWMutex
 }
 
-func NewRoomHubV2(logger *log.Logger, mux *stream.Mux, webhookURL string) *RoomHub {
+func NewRoomHubV2(logger *log.Logger, mx *mux.Mux, webhookURL string) *RoomHub {
 	assert.AssertNotNil(logger)
-	assert.AssertNotNil(mux)
+	assert.AssertNotNil(mx)
 	assert.AssertNotEmpty(webhookURL)
 	return &RoomHub{
 		logger:         logger,
-		mux:            mux,
+		mux:            mx,
 		muxMessageType: "room",
 		webhookURL:     webhookURL,
-		userNotifs:     map[stream.ID]struct{}{},
+		userNotifs:     map[mux.ID]struct{}{},
 	}
 }
 
@@ -46,17 +46,19 @@ func (r *RoomHub) MessageType() string {
 	return r.muxMessageType
 }
 
-func (r *RoomHub) HandleMessage(id stream.ID, msg []byte) error {
+func (r *RoomHub) HandleMessage(c *mux.Channel, msg []byte) error {
 	var pdata userPositionData
 	if err := json.Unmarshal(msg, &pdata); err != nil {
 		return fmt.Errorf("json unmarshal: %s", err)
 	}
 
+	id := c.ID()
+
 	if pdata.Unreg {
 		return r.broadcastDisconnect(id)
 	}
 
-	pdata.ID = id
+	pdata.ID = id[:]
 	msgb, err := json.Marshal(pdata)
 	if err != nil {
 		return fmt.Errorf("json marshal: %s", err)
@@ -78,21 +80,21 @@ func (r *RoomHub) HandleMessage(id stream.ID, msg []byte) error {
 		}()
 	}
 
-	return r.mux.Broadcast(r.muxMessageType, msgb, func(uid stream.ID) bool {
-		return id != uid
+	return r.mux.Broadcast(r.muxMessageType, msgb, func(ch *mux.Channel) bool {
+		return id == ch.ID()
 	})
 }
 
-func (r *RoomHub) HandleDisconnect(id stream.ID) {
+func (r *RoomHub) HandleDisconnect(id mux.ID) {
 	err := r.broadcastDisconnect(id)
 	if err != nil {
 		r.logger.Error("broadcast disconnect", "type", r.muxMessageType, "id", id)
 	}
 }
 
-func (r *RoomHub) broadcastDisconnect(id stream.ID) error {
+func (r *RoomHub) broadcastDisconnect(id mux.ID) error {
 	msg := userUnregistered{
-		ID:    id,
+		ID:    id[:],
 		Unreg: true,
 	}
 
@@ -101,14 +103,9 @@ func (r *RoomHub) broadcastDisconnect(id stream.ID) error {
 		r.logger.Error("ungregister json marshal", "err", err, "id", id)
 	}
 
-	return r.mux.Broadcast(r.muxMessageType, msgb, filterUser(id))
-
-}
-
-func filterUser(id stream.ID) func(stream.ID) bool {
-	return func(i stream.ID) bool {
-		return id != i
-	}
+	return r.mux.Broadcast(r.muxMessageType, msgb, func(c *mux.Channel) bool {
+		return c.ID() == id
+	})
 }
 
 type positionData struct {
@@ -117,13 +114,13 @@ type positionData struct {
 }
 
 type userPositionData struct {
-	ID    uint32 `json:"id"`
+	ID    []byte `json:"id"`
 	Unreg bool   `json:"delete,omitzero"`
 	positionData
 }
 
 type userUnregistered struct {
-	ID    uint32 `json:"id"`
+	ID    []byte `json:"id"`
 	Unreg bool   `json:"delete,omitzero"`
 }
 

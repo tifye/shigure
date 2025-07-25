@@ -22,5 +22,5 @@ func registerRoutes(e *echo.Echo, logger *log.Logger, config *viper.Viper, deps 
 	auth.GET("/auth/token/generate", handleGetGenerateToken(logger, config))
 	e.POST("/auth/token/verify", handlePostVerifyToken(logger, config))
 
-	e.GET("/ws", handleWebsocketConn(logger, deps.WSMux, deps.NewSessionCookie))
+	e.GET("/ws", handleWebsocketConn(logger, deps.WebSocketMux, deps.NewSessionCookie))
 }
