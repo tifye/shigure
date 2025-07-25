@@ -43,6 +43,8 @@ func handleWebsocketConn(
 			responseHeader.Add("Set-Cookie", sessionCookie.String())
 		}
 
+		logger.Debug("upgrading to websocket connection")
+
 		conn, err := upgrader.Upgrade(c.Response(), c.Request(), responseHeader)
 		if err != nil {
 			logger.Error(err)
@@ -54,6 +56,8 @@ func handleWebsocketConn(
 			return len(data), conn.WriteMessage(websocket.TextMessage, data)
 		}))
 		defer mx.Disconnect(sessionID, channelID)
+
+		logger.Debug("channel connected", "channelID", channelID, "sessionID", sessionID)
 
 		for {
 			_, msg, err := conn.ReadMessage()

@@ -102,6 +102,7 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 
 	room := personalsite.NewRoomHubV2(logger.WithPrefix("room-v2"), mux2, config.GetString("DISCORD_WEBHOOK_URL"))
 	mux2.RegisterHandler(room.MessageType(), room)
+	mux2.AddDisconnectHook(room.HandleDisconnect)
 
 	vsc := activity.NewVSCodeActivityClient(logger.WithPrefix("vscode"), mux2)
 	mux2.RegisterHandler(vsc.MessageType(), vsc)
@@ -127,6 +128,7 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 		return nil
 	})
 	mux2.RegisterHandler(discordBot.MessageType(), discordBot)
+	mux2.AddDisconnectHook(discordBot.HandleMuxDisconnect)
 
 	sessionStore := sessions.NewFilesystemStore("", []byte(config.GetString("OTP_SECRET")))
 	newSessionCookie := func(s *sessions.Session) (*http.Cookie, error) {

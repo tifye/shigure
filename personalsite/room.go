@@ -85,10 +85,10 @@ func (r *RoomHub) HandleMessage(c *mux.Channel, msg []byte) error {
 	})
 }
 
-func (r *RoomHub) HandleDisconnect(id mux.ID) {
-	err := r.broadcastDisconnect(id)
+func (r *RoomHub) HandleDisconnect(c *mux.Channel, _ bool) {
+	err := r.broadcastDisconnect(c.ID())
 	if err != nil {
-		r.logger.Error("broadcast disconnect", "type", r.muxMessageType, "id", id)
+		r.logger.Error("broadcast disconnect", "type", r.muxMessageType, "id", c.ID())
 	}
 }
 

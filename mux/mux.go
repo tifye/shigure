@@ -43,6 +43,7 @@ type Mux struct {
 	channels             map[ID]*Channel
 	channelSubscriptions map[MessageType][]*Channel
 	handlers             map[MessageType]Handler
+	*hooks
 }
 
 func NewMux(logger *log.Logger) *Mux {
@@ -54,15 +55,16 @@ func NewMux(logger *log.Logger) *Mux {
 		channels:             map[ID]*Channel{},
 		channelSubscriptions: map[MessageType][]*Channel{},
 		handlers:             map[MessageType]Handler{},
+		hooks:                newHooks(),
 	}
 }
 
 func (m *Mux) RegisterHandler(typ MessageType, handler Handler) {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	_, exists := m.handlers[typ]
 	assert.Assert(!exists, "handler already registered for this MessageType")
 	m.handlers[typ] = handler
-	m.mu.Unlock()
 }
 
 // Connect creates a new channel in the session with
@@ -91,6 +93,7 @@ func (m *Mux) Connect(sessionID ID, writer io.Writer) ID {
 	channel := newChannel(channelID, session, writer)
 	assert.AssertNotNil(channel)
 	session.addChannel(channel)
+	defer m.runConnectHooks(channel, len(session.channels) == 0)
 
 	m.mu.Lock()
 	m.sessions = append(m.sessions, session)
@@ -107,17 +110,18 @@ func (m *Mux) Connect(sessionID ID, writer io.Writer) ID {
 // Disconnect hooks are called after the channel and/or session
 // is removed.
 func (m *Mux) Disconnect(sessionID, channelID ID) {
+	m.logger.Info("mux disconnect", "channelID", channelID, "sessionID", sessionID)
+
 	session := m.Session(sessionID)
 	if session == nil {
 		return
 	}
 
-	numChannels := session.removeChannel(channelID)
-	if numChannels > 0 {
-		return
-	}
+	channel := session.Channel(channelID)
+	defer m.runDisconnectHooks(channel, len(session.channels) == 0)
 
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	for typ, channels := range m.channelSubscriptions {
 		m.channelSubscriptions[typ] = slices.DeleteFunc(channels, func(c *Channel) bool {
 			return c.ID() == channelID
@@ -126,10 +130,14 @@ func (m *Mux) Disconnect(sessionID, channelID ID) {
 
 	delete(m.channels, channelID)
 
+	numChannels := session.removeChannel(channelID)
+	if numChannels > 0 {
+		return
+	}
+
 	m.sessions = slices.DeleteFunc(m.sessions, func(s *Session) bool {
 		return s.ID() == sessionID
 	})
-	m.mu.Unlock()
 }
 
 // Session returns the session with the corresponding
@@ -163,8 +171,6 @@ func (m *Mux) Message(sessionID, channelID ID, data []byte) error {
 		return fmt.Errorf("channel does not exist")
 	}
 
-	m.logger.Debug("message", "sesdsionID", sessionID, "channelID", channelID, "msg", string(data))
-
 	var msg Message
 	if err := json.Unmarshal(data, &msg); err != nil {
 		return fmt.Errorf("unmarshal message: %s", err)
@@ -174,11 +180,16 @@ func (m *Mux) Message(sessionID, channelID ID, data []byte) error {
 		return fmt.Errorf("message type too long, expect length of %d but got %d", MaxMessageTypeLen, len(msg.Type))
 	}
 
+	var err error
 	if strings.HasPrefix(msg.Type, string(muxMessageTypePrefix)) {
-		return m.handleMuxMessage(channel, msg)
+		err = m.handleMuxMessage(channel, msg)
 	} else {
-		return m.handleMessage(channel, msg)
+		err = m.handleMessage(channel, msg)
 	}
+
+	m.runMessageHooks(channel, msg.Type, msg.Paylod)
+
+	return err
 }
 
 type muxRegisterMessage struct {
@@ -265,12 +276,12 @@ func (m *Mux) Sessions() []*Session {
 func (m *Mux) SubscribedChannels(typ MessageType) []*Channel {
 	assert.Assert(len(typ) <= MaxMessageTypeLen, "message type too long")
 	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if m.channelSubscriptions[typ] == nil {
 		return nil
 	}
 	channels := make([]*Channel, len(m.channelSubscriptions[typ]))
 	copy(channels, m.channelSubscriptions[typ])
-	m.mu.RUnlock()
 	return channels
 }
 
@@ -305,7 +316,6 @@ func (m *Mux) sendSession(session *Session, typ MessageType, payload []byte, exc
 	channels := session.Channels()
 	for _, channel := range channels {
 		if !channel.IsSubscribedTo(typ) || exclude(channel) {
-			m.logger.Debug("meep")
 			continue
 		}
 

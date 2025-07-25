@@ -64,6 +64,12 @@ func TestMuxDisconnectCleanup(t *testing.T) {
 	err := mux.Message(sID, cID, registerMessage(t, messageType))
 	assert.NoError(t, err)
 
+	// Used to keep session alive
+	_ = mux.Connect(sID, WriterFunc(func(data []byte) (n int, err error) {
+		return 0, nil
+	}))
+	assert.NoError(t, err)
+
 	mux.Disconnect(sID, cID)
 	mux.Broadcast(messageType, []byte("{}"), nil)
 

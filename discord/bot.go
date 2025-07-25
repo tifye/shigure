@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -30,9 +29,6 @@ type ChatBot struct {
 	sesh           *discordgo.Session
 	guildID        string
 	chatCategoryID string
-
-	mu             sync.RWMutex
-	userChannelIDs map[string]mux.ID
 
 	mux            *mux.Mux
 	muxMessageType string
@@ -61,7 +57,6 @@ func NewChatBot(
 		sesh:           sesh,
 		guildID:        guildID,
 		chatCategoryID: chatCategoryID,
-		userChannelIDs: map[string]mux.ID{},
 		mux:            mx,
 		muxMessageType: "chat",
 		cache:          cache.New(30*time.Minute, 60*time.Minute),
@@ -163,10 +158,6 @@ func (b *ChatBot) HandleMessage(c *mux.Channel, data []byte) error {
 		return err
 	}
 
-	b.mu.Lock()
-	b.userChannelIDs[userCh.ID] = muxID
-	b.mu.Unlock()
-
 	err = b.mux.SendSession(c.Session().ID(), b.muxMessageType, data, func(ch *mux.Channel) bool {
 		return c.ID() == ch.ID()
 	})
@@ -180,6 +171,24 @@ func (b *ChatBot) HandleMessage(c *mux.Channel, data []byte) error {
 	}
 
 	return nil
+}
+
+func (b *ChatBot) HandleMuxDisconnect(c *mux.Channel, lastChannel bool) {
+	muxID := c.Session().ID()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	userCh, err := b.userChannel(ctx, muxID)
+	if err != nil {
+		b.logger.Warn("failed to get user channel", "err", err)
+		return
+	}
+
+	_, err = b.sesh.ChannelMessageSend(userCh.ID, "(user disconnected)", discordgo.WithContext(ctx))
+	if err != nil {
+		b.logger.Warn("failed to send user disconnect messsage", "err", err)
+		return
+	}
 }
 
 func (b *ChatBot) siteChatsChannel(ctx context.Context) (*discordgo.Channel, error) {
