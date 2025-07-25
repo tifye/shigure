@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/gorilla/securecookie"
+	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 	"github.com/tifye/shigure/activity"
@@ -126,10 +128,21 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 	})
 	mux.RegisterHandler(discordBot.MessageType(), discordBot.HandleMessage)
 
+	sessionStore := sessions.NewFilesystemStore("", []byte(config.GetString("OTP_SECRET")))
+	newSessionCookie := func(s *sessions.Session) (*http.Cookie, error) {
+		val, err := securecookie.EncodeMulti(s.Name(), s.ID, sessionStore.Codecs...)
+		if err != nil {
+			return nil, err
+		}
+		return sessions.NewCookie(s.Name(), val, s.Options), nil
+	}
+
 	return &api.ServerDependencies{
 		ActivityClient:       activity.NewClient(logger.WithPrefix("youtube"), youtubeApiKey),
 		VSCodeActivityClient: vsc,
 		WSMux:                mux,
+		SessionStore:         sessionStore,
+		NewSessionCookie:     newSessionCookie,
 	}, cfs, nil
 }
 

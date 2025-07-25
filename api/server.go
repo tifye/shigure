@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/gorilla/sessions"
 	"github.com/gorilla/websocket"
+	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/viper"
@@ -26,6 +28,8 @@ type ServerDependencies struct {
 	ActivityClient       *activity.Client
 	VSCodeActivityClient *activity.VSCodeActivityClient
 	WSMux                *stream.Mux
+	SessionStore         sessions.Store
+	NewSessionCookie     func(s *sessions.Session) (*http.Cookie, error)
 }
 
 func NewServer(logger *log.Logger, config *viper.Viper, deps *ServerDependencies) *http.Server {
@@ -70,6 +74,8 @@ func NewServer(logger *log.Logger, config *viper.Viper, deps *ServerDependencies
 			"Passcode",
 		},
 	}))
+
+	e.Use(session.Middleware(deps.SessionStore))
 
 	registerRoutes(e, logger, config, deps)
 

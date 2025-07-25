@@ -46,7 +46,24 @@ func NewMux() *Mux {
 
 func (m *Mux) Connect(write func(id ID, data []byte)) ID {
 	id := rand.Uint32()
+	m.connect(id, write)
+	return id
+}
 
+func (m *Mux) Reconnect(id ID, write func(id ID, data []byte)) error {
+	m.usersMu.RLock()
+	_, exists := m.users[id]
+	m.usersMu.RUnlock()
+
+	if exists {
+		return fmt.Errorf("user already connected")
+	}
+
+	m.connect(id, write)
+	return nil
+}
+
+func (m *Mux) connect(id ID, write func(id ID, data []byte)) {
 	user := &User{
 		id:     id,
 		writer: write,
@@ -67,8 +84,6 @@ func (m *Mux) Connect(write func(id ID, data []byte)) ID {
 		assert.AssertNotNil(hook)
 		hook(id, user)
 	}
-
-	return id
 }
 
 func (m *Mux) Disconnect(id ID) error {
