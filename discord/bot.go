@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base32"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -143,6 +144,11 @@ func (b *ChatBot) HandleMessage(c *mux.Channel, data []byte) error {
 	if len(msg.Type) > 30 {
 		return fmt.Errorf("message type too long: %d", len(msg.Type))
 	}
+
+	if msg.Type != "message" || msg.Payload.Actor != "user" {
+		return nil
+	}
+
 	if len(msg.Payload.Message) > discordMaxMessageLength {
 		return fmt.Errorf("message too long, expected at most %d but got %d", discordMaxMessageLength, len(msg.Payload.Message))
 	}
@@ -153,24 +159,46 @@ func (b *ChatBot) HandleMessage(c *mux.Channel, data []byte) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	err := b.mux.SendSession(muxID, b.muxMessageType, data, func(ch *mux.Channel) bool {
+		return c.ID() == ch.ID()
+	})
+	if err != nil {
+		b.logger.Error("failed to session to other channels", "muxID", muxID, "msg", string(data))
+	}
+
+	err = b.forwardUserChatMessage(ctx, muxID, msg.Payload.Message)
+	if err != nil {
+		b.logger.Error("failed to forward user message", "err", err, "muxID", muxID)
+	}
+
+	return nil
+}
+
+func (b *ChatBot) forwardUserChatMessage(ctx context.Context, muxID mux.ID, msg string) error {
+	assert.AssertNotEmpty(msg)
+
 	userCh, err := b.userChannel(ctx, muxID)
 	if err != nil {
 		return err
 	}
 
-	err = b.mux.SendSession(c.Session().ID(), b.muxMessageType, data, func(ch *mux.Channel) bool {
-		return c.ID() == ch.ID()
-	})
+	_, err = b.sesh.ChannelMessageSend(userCh.ID, msg, discordgo.WithContext(ctx))
 	if err != nil {
-		b.logger.Error("failed to session to other channels", "sessionID", c.Session().ID(), "channelID", c.ID(), "msg", string(data))
+		var apiErr *discordgo.RESTError
+		if !errors.As(err, &apiErr) {
+			return err
+		}
+
+		b.cache.Delete(userChannelCacheKey(muxID))
+		userCh, err = b.userChannel(ctx, muxID)
+		if err != nil {
+			return err
+		}
+
+		_, err = b.sesh.ChannelMessageSend(userCh.ID, msg, discordgo.WithContext(ctx))
 	}
 
-	_, err = b.sesh.ChannelMessageSend(userCh.ID, msg.Payload.Message, discordgo.WithContext(ctx))
-	if err != nil {
-		return fmt.Errorf("send message: %s", err)
-	}
-
-	return nil
+	return err
 }
 
 func (b *ChatBot) HandleMuxChatSubscription(c *mux.Channel, typ mux.MessageType, didSub bool) {
@@ -180,7 +208,7 @@ func (b *ChatBot) HandleMuxChatSubscription(c *mux.Channel, typ mux.MessageType,
 	muxID := c.Session().ID()
 
 	if didSub {
-		b.logger.Info("channel subscribed")
+
 	} else {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -223,16 +251,33 @@ func (b *ChatBot) userChannel(ctx context.Context, id mux.ID) (*discordgo.Channe
 	assert.Assert(siteChatsCh.Type == discordgo.ChannelTypeGuildCategory, "expected channel of type GuildCategory")
 
 	if ch == nil {
-		ch, err = b.sesh.GuildChannelCreateComplex(b.guildID, discordgo.GuildChannelCreateData{
-			Name:     cacheKey,
-			ParentID: siteChatsCh.ID,
-		}, discordgo.WithContext(ctx))
+		ch, err = b.createChannel(ctx, cacheKey, siteChatsCh.ID)
 		if err != nil {
-			return nil, fmt.Errorf("create channel: %s", err)
+			return nil, err
 		}
 	}
 
+	if ch != nil {
+		b.cache.Set(cacheKey, ch, useDefaultCacheTime)
+	}
+
 	assert.Assert(ch.Type == discordgo.ChannelTypeGuildText, "expected channel of type GuildText")
+	return ch, nil
+}
+
+func (b *ChatBot) createChannel(ctx context.Context, name, parentID string) (*discordgo.Channel, error) {
+	assert.AssertNotEmpty(name)
+
+	ch, err := b.sesh.GuildChannelCreateComplex(b.guildID, discordgo.GuildChannelCreateData{
+		Name:     name,
+		ParentID: parentID,
+	}, discordgo.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("create channel: %s", err)
+	}
+
+	assert.AssertNotNil(ch)
+	b.logger.Info("created channel", "name", name, "parentID", parentID)
 	return ch, nil
 }
 
