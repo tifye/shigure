@@ -21,9 +21,7 @@ const (
 	useDefaultCacheTime     = -1
 	discordMaxMessageLength = 2000
 
-	siteChatsChannelCacheKey  = "site-chats"
-	userChannelCacheKeyPrefix = "user-"
-	systemMark                = "🐱"
+	siteChatsChannelCacheKey = "site-chats"
 )
 
 type ChatBot struct {
@@ -186,13 +184,16 @@ func (b *ChatBot) HandleMessage(c *mux.Channel, data []byte) error {
 func (b *ChatBot) sendToUserChat(ctx context.Context, muxID mux.ID, msg string, isSystem bool) error {
 	assert.AssertNotEmpty(msg)
 
+	if isSystem {
+		msg = systemPrefix(muxID) + msg
+	}
+
 	userCh, err := b.userChannel(ctx, muxID)
 	if err != nil {
 		return err
 	}
 
-	var st *discordgo.Message
-	st, err = b.sesh.ChannelMessageSend(userCh.ID, msg, discordgo.WithContext(ctx))
+	_, err = b.sesh.ChannelMessageSend(userCh.ID, msg, discordgo.WithContext(ctx))
 	if err != nil {
 		var apiErr *discordgo.RESTError
 		if !errors.As(err, &apiErr) {
@@ -200,14 +201,12 @@ func (b *ChatBot) sendToUserChat(ctx context.Context, muxID mux.ID, msg string, 
 		}
 
 		b.cache.Delete(userChannelCacheKey(muxID))
-		userCh, err = b.userChannel(ctx, muxID)
+		_, err = b.userChannel(ctx, muxID)
 		if err != nil {
 			return err
 		}
-	}
 
-	if isSystem {
-		_ = b.sesh.MessageReactionAdd(userCh.ID, st.ID, systemMark, discordgo.WithContext(ctx))
+		_, err = b.sesh.ChannelMessageSend(userCh.ID, msg, discordgo.WithContext(ctx))
 	}
 
 	return err
@@ -225,7 +224,7 @@ func (b *ChatBot) HandleMuxChatSubscription(c *mux.Channel, typ mux.MessageType,
 	if didSub {
 		b.replayChat(ctx, c)
 	} else {
-		err := b.sendToUserChat(ctx, muxID, userDisconnectMessage(muxID), true)
+		err := b.sendToUserChat(ctx, muxID, "User disconnected.", true)
 		if err != nil {
 			b.logger.Warn("failed to send user disconnect messsage", "err", err)
 			return
@@ -254,7 +253,7 @@ func (b *ChatBot) replayChat(ctx context.Context, c *mux.Channel) {
 
 	chatMsgs := make([]chatMessage, 0, replayAmount)
 	for _, m := range channelMsgs {
-		if isSystemMessage(m) {
+		if isSystemMessage(m, muxID) {
 			continue
 		}
 
@@ -322,7 +321,7 @@ func (b *ChatBot) userChannel(ctx context.Context, muxID mux.ID) (*discordgo.Cha
 		}
 
 		assert.AssertNotNil(ch)
-		err = b.sendToUserChat(ctx, muxID, userChannelCreatedMessage(muxID), true)
+		err = b.sendToUserChat(ctx, muxID, "Channel opened.", true)
 		if err != nil {
 			b.logger.Warn("failed to notify user channel created", "muxID", muxID)
 		}
@@ -401,13 +400,12 @@ func encodeMuxIDToChannelName(input mux.ID) string {
 	encoder := base32.StdEncoding.WithPadding(base32.NoPadding)
 	encoded := encoder.EncodeToString(input[:])
 	encoded = strings.ToLower(encoded)
-	return userChannelCacheKeyPrefix + encoded
+	return encoded
 }
 
 func decodeChannelNameToMuxID(channelName string) (mux.ID, error) {
 	var result mux.ID
-	trimmed := strings.TrimPrefix(channelName, userChannelCacheKeyPrefix)
-	upper := strings.ToUpper(trimmed) // base32 expects uppercase
+	upper := strings.ToUpper(channelName) // base32 expects uppercase
 	decoder := base32.StdEncoding.WithPadding(base32.NoPadding)
 	decoded, err := decoder.DecodeString(upper)
 	if err != nil {
@@ -420,14 +418,10 @@ func decodeChannelNameToMuxID(channelName string) (mux.ID, error) {
 	return result, nil
 }
 
-func userDisconnectMessage(muxID mux.ID) string {
-	return fmt.Sprintf("```[%s]\nUser disconnected.```", encodeMuxIDToChannelName(muxID))
+func isSystemMessage(msg *discordgo.Message, muxID mux.ID) bool {
+	return strings.HasPrefix(msg.Content, systemPrefix(muxID))
 }
 
-func userChannelCreatedMessage(muxID mux.ID) string {
-	return fmt.Sprintf("```[%s]\nChannel opened.```", encodeMuxIDToChannelName(muxID))
-}
-
-func isSystemMessage(msg *discordgo.Message) bool {
-	return len(msg.Reactions) > 0
+func systemPrefix(muxID mux.ID) string {
+	return fmt.Sprintf("`[%s]`\n", encodeMuxIDToChannelName(muxID))
 }
