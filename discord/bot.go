@@ -276,7 +276,7 @@ func (b *ChatBot) replayChat(ctx context.Context, c *mux.Channel) {
 	// were sent.
 	slices.Reverse(chatMsgs)
 
-	payload, _ := json.Marshal(channelMsgs)
+	payload, _ := json.Marshal(chatMsgs)
 	data, err := json.Marshal(message{
 		Type:    "replay",
 		Payload: payload,
