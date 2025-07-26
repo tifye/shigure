@@ -43,8 +43,6 @@ func handleWebsocketConn(
 			responseHeader.Add("Set-Cookie", sessionCookie.String())
 		}
 
-		logger.Debug("upgrading to websocket connection")
-
 		conn, err := upgrader.Upgrade(c.Response(), c.Request(), responseHeader)
 		if err != nil {
 			logger.Error(err)

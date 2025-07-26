@@ -20,18 +20,27 @@ type ConnectHook func(c *Channel, firstChannel bool)
 
 type MessageHook func(c *Channel, typ MessageType, payload []byte)
 
+// SubscriptionHooks are called when a channel has subscribed or
+// unsubscribed from a MessageType.
+//
+// didSub is true when the channel has subscribed and false
+// when the channel has unsubscribed.
+type SubscriptionHook func(c *Channel, typ MessageType, didSub bool)
+
 type hooks struct {
-	disconnect []DisconnectHook
-	connect    []ConnectHook
-	message    []MessageHook
-	mu         sync.RWMutex
+	disconnect   []DisconnectHook
+	connect      []ConnectHook
+	message      []MessageHook
+	subscription map[MessageType][]SubscriptionHook
+	mu           sync.RWMutex
 }
 
 func newHooks() *hooks {
 	return &hooks{
-		connect:    []ConnectHook{},
-		disconnect: []DisconnectHook{},
-		message:    []MessageHook{},
+		connect:      []ConnectHook{},
+		disconnect:   []DisconnectHook{},
+		message:      []MessageHook{},
+		subscription: map[MessageType][]SubscriptionHook{},
 	}
 }
 
@@ -81,4 +90,20 @@ func (h *hooks) AddDisconnectHook(f DisconnectHook) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.disconnect = append(h.disconnect, f)
+}
+
+func (h *hooks) runSubscriptionHooks(c *Channel, typ MessageType, didSub bool) {
+	h.mu.RLock()
+	funcs := make([]SubscriptionHook, len(h.subscription[typ]))
+	copy(funcs, h.subscription[typ])
+	h.mu.RUnlock()
+
+	for _, f := range funcs {
+		f(c, typ, didSub)
+	}
+}
+func (h *hooks) AddSubscriptionHook(typ MessageType, f SubscriptionHook) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.subscription[typ] = append(h.subscription[typ], f)
 }

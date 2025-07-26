@@ -120,24 +120,20 @@ func (m *Mux) Disconnect(sessionID, channelID ID) {
 	channel := session.Channel(channelID)
 	defer m.runDisconnectHooks(channel, len(session.channels) == 0)
 
+	subscriptions := channel.Subscriptions()
+	for _, typ := range subscriptions {
+		m.unsubscribeChannel(channel, typ)
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	for typ, channels := range m.channelSubscriptions {
-		m.channelSubscriptions[typ] = slices.DeleteFunc(channels, func(c *Channel) bool {
-			return c.ID() == channelID
+	delete(m.channels, channelID)
+	numChannels := session.removeChannel(channelID)
+	if numChannels == 0 {
+		m.sessions = slices.DeleteFunc(m.sessions, func(s *Session) bool {
+			return s.ID() == sessionID
 		})
 	}
-
-	delete(m.channels, channelID)
-
-	numChannels := session.removeChannel(channelID)
-	if numChannels > 0 {
-		return
-	}
-
-	m.sessions = slices.DeleteFunc(m.sessions, func(s *Session) bool {
-		return s.ID() == sessionID
-	})
 }
 
 // Session returns the session with the corresponding
@@ -212,18 +208,7 @@ func (m *Mux) handleMuxMessage(channel *Channel, msg Message) error {
 			return fmt.Errorf("no MessageType provided to subscribe to")
 		}
 
-		m.mu.RLock()
-		_, handlerExists := m.handlers[reg.MessageType]
-		m.mu.RUnlock()
-		if !handlerExists {
-			m.logger.Warn("trying to subscribe on MessageType with no registered handlers", "messageType", reg.MessageType, "sessionID", channel.session.ID(), "channelID", channel.ID())
-			return nil
-		}
-
-		m.mu.Lock()
-		m.channelSubscriptions[reg.MessageType] = append(m.channelSubscriptions[reg.MessageType], channel)
-		channel.subscribeTo(reg.MessageType)
-		m.mu.Unlock()
+		m.subscribeChannel(channel, reg.MessageType)
 	case unsubscribeMesssage:
 		var reg muxRegisterMessage
 		if err := json.Unmarshal(msg.Paylod, &reg); err != nil {
@@ -234,22 +219,57 @@ func (m *Mux) handleMuxMessage(channel *Channel, msg Message) error {
 			return fmt.Errorf("no MessageType provided to unsubscribe from")
 		}
 
-		channels := m.SubscribedChannels(reg.MessageType)
-		if channels == nil {
-			return nil
-		}
-
-		m.mu.Lock()
-		m.channelSubscriptions[reg.MessageType] = slices.DeleteFunc(m.channelSubscriptions[reg.MessageType], func(c *Channel) bool {
-			return c.ID() == channel.ID()
-		})
-		channel.unsubscribeFrom(reg.MessageType)
-		m.mu.Unlock()
+		m.unsubscribeChannel(channel, reg.MessageType)
 	default:
-		panic(fmt.Sprintf("invalid mux action: %s", action))
+		m.logger.Warn("invalid mux action", "action", action)
 	}
 
 	return nil
+}
+
+func (m *Mux) subscribeChannel(channel *Channel, typ MessageType) {
+	assert.AssertNotNil(channel)
+	assert.Assert(len(typ) <= MaxMessageTypeLen, "message type too long")
+	assert.AssertNotEmpty(typ)
+
+	if channel.IsSubscribedTo(typ) {
+		return
+	}
+
+	m.mu.RLock()
+	_, handlerExists := m.handlers[typ]
+	m.mu.RUnlock()
+	if !handlerExists {
+		m.logger.Warn("trying to subscribe on MessageType with no registered handlers", "messageType", typ, "sessionID", channel.session.ID(), "channelID", channel.ID())
+		return
+	}
+
+	m.mu.Lock()
+	m.channelSubscriptions[typ] = append(m.channelSubscriptions[typ], channel)
+	channel.addSubscription(typ)
+	m.mu.Unlock()
+
+	m.runSubscriptionHooks(channel, typ, true)
+}
+
+func (m *Mux) unsubscribeChannel(channel *Channel, typ MessageType) {
+	assert.AssertNotNil(channel)
+	assert.Assert(len(typ) <= MaxMessageTypeLen, "message type too long")
+	assert.AssertNotEmpty(typ)
+
+	channels := m.SubscribedChannels(typ)
+	if channels == nil {
+		return
+	}
+
+	m.mu.Lock()
+	m.channelSubscriptions[typ] = slices.DeleteFunc(m.channelSubscriptions[typ], func(c *Channel) bool {
+		return c.ID() == channel.ID()
+	})
+	channel.removeSubscription(typ)
+	m.mu.Unlock()
+
+	m.runSubscriptionHooks(channel, typ, false)
 }
 
 func (m *Mux) handleMessage(channel *Channel, msg Message) error {
@@ -393,112 +413,4 @@ func (m *Mux) Broadcast(typ MessageType, payload []byte, exclude func(c *Channel
 	}
 
 	return nil
-}
-
-type Session struct {
-	id       ID
-	mu       sync.RWMutex
-	channels []*Channel
-}
-
-func newSession(id ID) *Session {
-	assert.AssertNotNil(id)
-	return &Session{
-		id:       id,
-		channels: []*Channel{},
-	}
-}
-
-// Channel returns the channel with the corresponding
-// channelID or nil if none exists.
-func (s *Session) Channel(channelID ID) *Channel {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	for _, c := range s.channels {
-		if c.id == channelID {
-			return c
-		}
-	}
-	return nil
-}
-
-func (s *Session) addChannel(c *Channel) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.channels = append(s.channels, c)
-}
-
-// removeChannel removes a channel from the session
-// with the corresponding channelID. It returns
-// the numbers of channels left in the session.
-func (s *Session) removeChannel(id ID) uint {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.channels = slices.DeleteFunc(s.channels, func(c *Channel) bool {
-		return c.id == id
-	})
-	return uint(len(s.channels))
-}
-
-func (s *Session) Channels() []*Channel {
-	s.mu.RLock()
-	channels := make([]*Channel, len(s.channels))
-	copy(channels, s.channels)
-	s.mu.RUnlock()
-	return channels
-}
-
-func (s *Session) ID() ID {
-	return s.id
-}
-
-type Channel struct {
-	id            ID
-	session       *Session
-	writer        io.Writer
-	subscriptions []MessageType
-	mu            sync.RWMutex
-}
-
-func newChannel(id ID, session *Session, writer io.Writer) *Channel {
-	assert.AssertNotNil(id)
-	assert.AssertNotNil(session)
-	assert.AssertNotNil(writer)
-	return &Channel{
-		id:            id,
-		session:       session,
-		writer:        writer,
-		subscriptions: []MessageType{},
-	}
-}
-
-func (c *Channel) ID() ID {
-	return c.id
-}
-
-func (c *Channel) IsSubscribedTo(typ MessageType) bool {
-	c.mu.RLock()
-	ok := slices.Contains(c.subscriptions, typ)
-	c.mu.RUnlock()
-	return ok
-}
-
-func (c *Channel) subscribeTo(typ MessageType) {
-	c.mu.Lock()
-	c.subscriptions = append(c.subscriptions, typ)
-	c.mu.Unlock()
-}
-
-func (c *Channel) unsubscribeFrom(typ MessageType) {
-	c.mu.Lock()
-	c.subscriptions = slices.DeleteFunc(c.subscriptions, func(t MessageType) bool {
-		return t == typ
-	})
-	c.mu.Unlock()
-}
-
-func (c *Channel) Session() *Session {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.session
 }

@@ -128,7 +128,7 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 		return nil
 	})
 	mux2.RegisterHandler(discordBot.MessageType(), discordBot)
-	mux2.AddDisconnectHook(discordBot.HandleMuxDisconnect)
+	mux2.AddSubscriptionHook(discordBot.MessageType(), discordBot.HandleMuxChatSubscription)
 
 	sessionStore := sessions.NewFilesystemStore("", []byte(config.GetString("OTP_SECRET")))
 	newSessionCookie := func(s *sessions.Session) (*http.Cookie, error) {

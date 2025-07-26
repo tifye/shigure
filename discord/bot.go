@@ -173,21 +173,29 @@ func (b *ChatBot) HandleMessage(c *mux.Channel, data []byte) error {
 	return nil
 }
 
-func (b *ChatBot) HandleMuxDisconnect(c *mux.Channel, lastChannel bool) {
+func (b *ChatBot) HandleMuxChatSubscription(c *mux.Channel, typ mux.MessageType, didSub bool) {
+	assert.Assert(typ == b.muxMessageType, "expected only 'chat' message type")
+	assert.AssertNotNil(c)
+
 	muxID := c.Session().ID()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
-	userCh, err := b.userChannel(ctx, muxID)
-	if err != nil {
-		b.logger.Warn("failed to get user channel", "err", err)
-		return
-	}
+	if didSub {
+		b.logger.Info("channel subscribed")
+	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 
-	_, err = b.sesh.ChannelMessageSend(userCh.ID, "(user disconnected)", discordgo.WithContext(ctx))
-	if err != nil {
-		b.logger.Warn("failed to send user disconnect messsage", "err", err)
-		return
+		userCh, err := b.userChannel(ctx, muxID)
+		if err != nil {
+			b.logger.Warn("failed to get user channel", "err", err)
+			return
+		}
+
+		_, err = b.sesh.ChannelMessageSend(userCh.ID, "(user disconnected)", discordgo.WithContext(ctx))
+		if err != nil {
+			b.logger.Warn("failed to send user disconnect messsage", "err", err)
+			return
+		}
 	}
 }
 
