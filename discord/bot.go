@@ -68,17 +68,17 @@ func NewChatBot(
 	return b, nil
 }
 
-func (b *ChatBot) handleDiscordMessage(s *discordgo.Session, i *discordgo.MessageCreate) {
-	if i.Author.Bot {
+func (b *ChatBot) handleDiscordMessage(session *discordgo.Session, msgCreate *discordgo.MessageCreate) {
+	if msgCreate.Author.Bot {
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	ch, err := b.channel(ctx, i.ChannelID, channelIDFilter(i.ChannelID))
+	ch, err := b.channel(ctx, msgCreate.ChannelID, channelIDFilter(msgCreate.ChannelID))
 	if err != nil {
-		b.logger.Error("get channel", "err", err, "channelID", i.ChannelID)
+		b.logger.Error("get channel", "err", err, "channelID", msgCreate.ChannelID)
 		return
 	}
 	assert.AssertNotNil(ch)
@@ -94,7 +94,7 @@ func (b *ChatBot) handleDiscordMessage(s *discordgo.Session, i *discordgo.Messag
 
 	payload, _ := json.Marshal(chatMessage{
 		Actor:   "joshua",
-		Message: i.Message.Content,
+		Message: msgCreate.Message.Content,
 	})
 	msg := message{
 		Type:    "message",
