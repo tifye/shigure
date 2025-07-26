@@ -372,7 +372,15 @@ func (m *Mux) SendChannel(channelID ID, typ MessageType, payload []byte) error {
 		return nil
 	}
 
-	_, err := channel.writer.Write(payload)
+	data, err := json.Marshal(Message{
+		Type:   typ,
+		Paylod: payload,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal: %s", err)
+	}
+
+	_, err = channel.writer.Write(data)
 	if err != nil {
 		m.logger.Warn("write on channel", "channelID", channel.ID(), "sessionID", channel.session.ID())
 	}
