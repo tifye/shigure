@@ -94,17 +94,15 @@ func (b *ChatBot) handleDiscordMessage(s *discordgo.Session, i *discordgo.Messag
 		return
 	}
 
+	payload, _ := json.Marshal(chatMessage{
+		Actor:   "joshua",
+		Message: i.Message.Content,
+	})
 	msg := message{
-		Type: "message",
-		Payload: chatMessage{
-			Actor:   "joshua",
-			Message: i.Message.Content,
-		},
+		Type:    "message",
+		Payload: payload,
 	}
-	msgb, err := json.Marshal(msg)
-	if err != nil {
-		b.logger.Error("marshal message", "err", err, "msg", msg)
-	}
+	msgb, _ := json.Marshal(msg)
 
 	err = b.mux.SendSession(muxSessionID, b.muxMessageType, msgb, nil)
 	if err != nil {
@@ -130,8 +128,8 @@ type chatMessage struct {
 }
 
 type message struct {
-	Type    string `json:"type"`
-	Payload any    `json:"payload"`
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload"`
 }
 
 func (b *ChatBot) HandleMessage(c *mux.Channel, data []byte) error {
@@ -151,8 +149,10 @@ func (b *ChatBot) HandleMessage(c *mux.Channel, data []byte) error {
 		return nil
 	}
 
-	chatMessage, ok := msg.Payload.(chatMessage)
-	assert.Assert(ok, "expected chat message")
+	var chatMessage chatMessage
+	if err := json.Unmarshal(msg.Payload, &chatMessage); err != nil {
+		return fmt.Errorf("unmarshal payload: %s", err)
+	}
 
 	if chatMessage.Actor != "user" {
 		return nil
@@ -276,9 +276,10 @@ func (b *ChatBot) replayChat(ctx context.Context, c *mux.Channel) {
 	// were sent.
 	slices.Reverse(chatMsgs)
 
+	payload, _ := json.Marshal(channelMsgs)
 	data, err := json.Marshal(message{
 		Type:    "replay",
-		Payload: chatMsgs,
+		Payload: payload,
 	})
 	if err != nil {
 		b.logger.Error("marshal chat replay payload", "err", err, "muxID", c.Session().ID())
