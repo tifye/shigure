@@ -29,14 +29,19 @@ type RoomHub struct {
 	notifMu    sync.RWMutex
 }
 
-func NewRoomHubV2(logger *log.Logger, mx *mux.Mux, webhookURL string) *RoomHub {
+func NewRoomHubV2(
+	logger *log.Logger,
+	mx *mux.Mux,
+	messageType string,
+	webhookURL string,
+) *RoomHub {
 	assert.AssertNotNil(logger)
 	assert.AssertNotNil(mx)
 	assert.AssertNotEmpty(webhookURL)
 	return &RoomHub{
 		logger:         logger,
 		mux:            mx,
-		muxMessageType: "room",
+		muxMessageType: messageType,
 		webhookURL:     webhookURL,
 		userNotifs:     map[mux.ID]struct{}{},
 	}
@@ -49,6 +54,7 @@ func (r *RoomHub) MessageType() string {
 func (r *RoomHub) HandleMessage(c *mux.Channel, msg []byte) error {
 	var pdata userPositionData
 	if err := json.Unmarshal(msg, &pdata); err != nil {
+		r.logger.Debug(err)
 		return fmt.Errorf("json unmarshal: %s", err)
 	}
 

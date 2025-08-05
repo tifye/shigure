@@ -100,9 +100,13 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 
 	mux2 := mux.NewMux(logger.WithPrefix("mux"))
 
-	room := personalsite.NewRoomHubV2(logger.WithPrefix("room-v2"), mux2, config.GetString("DISCORD_WEBHOOK_URL"))
+	room := personalsite.NewRoomHubV2(logger.WithPrefix("room-v2"), mux2, "room", config.GetString("DISCORD_WEBHOOK_URL"))
 	mux2.RegisterHandler(room.MessageType(), room)
 	mux2.AddDisconnectHook(room.HandleDisconnect)
+
+	koiPond := personalsite.NewRoomHubV2(logger.WithPrefix("koi-pond"), mux2, "koi", config.GetString("DISCORD_WEBHOOK_URL"))
+	mux2.RegisterHandler(koiPond.MessageType(), koiPond)
+	mux2.AddDisconnectHook(koiPond.HandleDisconnect)
 
 	vsc := activity.NewVSCodeActivityClient(logger.WithPrefix("vscode"), mux2)
 	mux2.RegisterHandler(vsc.MessageType(), vsc)

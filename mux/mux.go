@@ -281,8 +281,11 @@ func (m *Mux) handleMessage(channel *Channel, msg Message) error {
 	handler := m.handlers[msg.Type]
 	m.mu.RUnlock()
 
-	handler.HandleMessage(channel, msg.Paylod)
-	return nil
+	if handler == nil {
+		return nil
+	}
+
+	return handler.HandleMessage(channel, msg.Paylod)
 }
 
 func (m *Mux) Sessions() []*Session {
