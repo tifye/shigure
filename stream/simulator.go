@@ -15,6 +15,7 @@ const (
 
 type Simulator struct {
 	logger *log.Logger
+	rnd    *rand.Rand
 	seed1  uint64
 	seed2  uint64
 
@@ -29,7 +30,6 @@ type Simulator struct {
 	disconnectedUsers                 map[ID]struct{}
 
 	mux *Mux
-	rnd *rand.Rand
 }
 
 func NewSimulator(seed1, seed2 uint64) *Simulator {

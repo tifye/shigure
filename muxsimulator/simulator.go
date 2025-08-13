@@ -9,17 +9,18 @@ import (
 )
 
 const (
-	maxIterations    = 100_000
-	probabilityRange = 100
+	maxIterations = 100_000
 )
 
 type Simulator struct {
 	logger *log.Logger
+	rnd    *rand.Rand
 	seed1  uint64
 	seed2  uint64
 
+	userSimulator *userSimulator
+
 	mux *mux.Mux
-	rnd *rand.Rand
 }
 
 func NewSimulator(seed1, seed2 uint64, w io.Writer) *Simulator {
@@ -29,14 +30,14 @@ func NewSimulator(seed1, seed2 uint64, w io.Writer) *Simulator {
 	})
 
 	rnd := rand.New(rand.NewPCG(seed1, seed2))
-
+	mux := mux.NewMux(log.New(io.Discard))
 	return &Simulator{
-		logger: logger,
-		seed1:  seed1,
-		seed2:  seed2,
-
-		mux: mux.NewMux(log.New(io.Discard)),
-		rnd: rnd,
+		logger:        logger,
+		rnd:           rnd,
+		seed1:         seed1,
+		seed2:         seed2,
+		userSimulator: newUserSimulator(logger, mux, rnd),
+		mux:           mux,
 	}
 }
 
@@ -58,4 +59,6 @@ func (s *Simulator) Run() {
 func (s *Simulator) Step() {
 	// Do random things
 	// s.logger.Info("doing something")
+
+	s.userSimulator.Step()
 }
