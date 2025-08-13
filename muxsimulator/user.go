@@ -43,7 +43,7 @@ func newUserSimulator(logger *log.Logger, mux *mux.Mux, rnd *rand.Rand) *userSim
 		logger: logger,
 		rnd:    rnd,
 
-		userConnectProbability:            0,
+		userConnectProbability:            rnd.UintN(probabilityRange),
 		userDisconnectProbability:         rnd.UintN(probabilityRange),
 		invalidDisconnectFaultProbability: rnd.UintN(probabilityRange),
 

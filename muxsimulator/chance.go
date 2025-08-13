@@ -7,5 +7,5 @@ var (
 )
 
 func Chance(rnd *rand.Rand, probability uint) bool {
-	return probability == rnd.UintN(probabilityRange)
+	return rnd.UintN(probabilityRange) < probability
 }
