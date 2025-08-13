@@ -15,6 +15,11 @@ type userSimulator struct {
 	logger *log.Logger
 	rnd    *rand.Rand
 
+	// Used for metrics
+	numConnects           uint
+	numDisconnects        uint
+	numInvalidDisconnects uint
+
 	// Change out of 100 that a new user will connect
 	userConnectProbability uint
 	// Chance out of 100 that an existing user will disconnect
@@ -59,7 +64,16 @@ func (s *userSimulator) String() string {
 		`userConnectProbability: %d%%
 userDisconnectProbability: %d%%
 invalidDisconnectFaultProbability: %d%%
-`, s.userConnectProbability, s.userDisconnectProbability, s.invalidDisconnectFaultProbability)
+numConnects: %d
+numDisconnects: %d
+numInvalidDisconnects: %d
+`, s.userConnectProbability,
+		s.userDisconnectProbability,
+		s.invalidDisconnectFaultProbability,
+		s.numConnects,
+		s.numDisconnects,
+		s.numInvalidDisconnects,
+	)
 }
 
 func (s *userSimulator) Step() {
@@ -81,7 +95,9 @@ func (s *userSimulator) connectUser() {
 	s.generateMuxID(sid[:])
 	cid := s.mux.Connect(sid, io.Discard)
 	s.connectedUsers[user{sessionID: sid, channelID: cid}] = struct{}{}
+
 	s.logger.Debug("User connected", "sid", sid, "cid", cid)
+	s.numConnects += 1
 }
 
 func (s *userSimulator) disconnectUser() {
@@ -104,7 +120,9 @@ func (s *userSimulator) disconnectUser() {
 
 	delete(s.connectedUsers, user)
 	s.disconnectedUsers[user] = struct{}{}
+
 	s.logger.Debug("User disconnected", "sid", user.sessionID, "cid", user.channelID)
+	s.numDisconnects += 1
 }
 
 func (s *userSimulator) invalidDisconnectUser() {
@@ -123,6 +141,8 @@ func (s *userSimulator) invalidDisconnectUser() {
 	}
 
 	s.mux.Disconnect(user.sessionID, user.channelID)
+
+	s.numInvalidDisconnects += 1
 }
 
 func (s *userSimulator) generateMuxID(b []byte) {
