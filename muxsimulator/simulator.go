@@ -48,6 +48,7 @@ func (s *Simulator) Run() {
 	defer func() {
 		s.logger.Info("Simulator finished",
 			"seed1", s.seed1, "seed2", s.seed2,
+			"userSimulator", s.userSimulator,
 		)
 	}()
 

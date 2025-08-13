@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/binary"
+	"fmt"
+	"io"
 	"math/rand/v2"
 
 	"github.com/charmbracelet/log"
@@ -20,10 +23,15 @@ type userSimulator struct {
 	// non-existent user
 	invalidDisconnectFaultProbability uint
 
-	connectedUsers    map[mux.ID]struct{}
-	disconnectedUsers map[mux.ID]struct{}
+	connectedUsers    map[user]struct{}
+	disconnectedUsers map[user]struct{}
 
 	mux *mux.Mux
+}
+
+type user struct {
+	sessionID mux.ID
+	channelID mux.ID
 }
 
 func newUserSimulator(logger *log.Logger, mux *mux.Mux, rnd *rand.Rand) *userSimulator {
@@ -35,17 +43,89 @@ func newUserSimulator(logger *log.Logger, mux *mux.Mux, rnd *rand.Rand) *userSim
 		logger: logger,
 		rnd:    rnd,
 
-		userConnectProbability:            rnd.UintN(probabilityRange),
+		userConnectProbability:            0,
 		userDisconnectProbability:         rnd.UintN(probabilityRange),
 		invalidDisconnectFaultProbability: rnd.UintN(probabilityRange),
 
-		connectedUsers:    map[[16]byte]struct{}{},
-		disconnectedUsers: map[[16]byte]struct{}{},
+		connectedUsers:    map[user]struct{}{},
+		disconnectedUsers: map[user]struct{}{},
 
 		mux: mux,
 	}
 }
 
-func (s *userSimulator) Step() {
+func (s *userSimulator) String() string {
+	return fmt.Sprintf(
+		`userConnectProbability: %d%%
+userDisconnectProbability: %d%%
+invalidDisconnectFaultProbability: %d%%
+`, s.userConnectProbability, s.userDisconnectProbability, s.invalidDisconnectFaultProbability)
+}
 
+func (s *userSimulator) Step() {
+	if Chance(s.rnd, s.userConnectProbability) {
+		s.connectUser()
+	}
+
+	if Chance(s.rnd, s.userDisconnectProbability) {
+		if Chance(s.rnd, s.invalidDisconnectFaultProbability) {
+			s.invalidDisconnectUser()
+		} else {
+			s.disconnectUser()
+		}
+	}
+}
+
+func (s *userSimulator) connectUser() {
+	sid := [16]byte{}
+	s.generateMuxID(sid[:])
+	cid := s.mux.Connect(sid, io.Discard)
+	s.connectedUsers[user{sessionID: sid, channelID: cid}] = struct{}{}
+	s.logger.Info("User connected", "sid", sid, "cid", cid)
+}
+
+func (s *userSimulator) disconnectUser() {
+	if len(s.connectedUsers) == 0 {
+		s.logger.Info("No users to disconnect")
+		return
+	}
+
+	n := s.rnd.IntN(len(s.connectedUsers))
+	var user user
+	i := 0
+	for user = range s.connectedUsers {
+		if i == n {
+			break
+		}
+		i++
+	}
+
+	s.mux.Disconnect(user.sessionID, user.channelID)
+
+	delete(s.connectedUsers, user)
+	s.disconnectedUsers[user] = struct{}{}
+	s.logger.Info("User disconnected", "sid", user.sessionID, "cid", user.channelID)
+}
+
+func (s *userSimulator) invalidDisconnectUser() {
+	if len(s.disconnectedUsers) == 0 {
+		return
+	}
+
+	n := s.rnd.IntN(len(s.disconnectedUsers))
+	var user user
+	i := 0
+	for user = range s.disconnectedUsers {
+		if i == n {
+			break
+		}
+		i++
+	}
+
+	s.mux.Disconnect(user.sessionID, user.channelID)
+}
+
+func (s *userSimulator) generateMuxID(b []byte) {
+	binary.LittleEndian.PutUint64(b, s.rnd.Uint64())
+	binary.LittleEndian.PutUint64(b[8:], s.rnd.Uint64())
 }
