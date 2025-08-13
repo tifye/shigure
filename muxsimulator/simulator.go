@@ -23,11 +23,7 @@ type Simulator struct {
 	mux *mux.Mux
 }
 
-func NewSimulator(seed1, seed2 uint64, w io.Writer) *Simulator {
-	logger := log.NewWithOptions(w, log.Options{
-		Level:           log.InfoLevel,
-		ReportTimestamp: false,
-	})
+func NewSimulator(seed1, seed2 uint64, logger *log.Logger) *Simulator {
 
 	rnd := rand.New(rand.NewPCG(seed1, seed2))
 	mux := mux.NewMux(log.New(io.Discard))
