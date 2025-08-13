@@ -4,3 +4,6 @@ tasks:
   dev:
     cmds:
       - air -c .air.toml
+  mux-sim:
+    cmds:
+      - go run ./muxsimulator/
