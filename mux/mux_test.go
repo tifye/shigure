@@ -175,8 +175,8 @@ func registerMessage(t *testing.T, typ MessageType) []byte {
 	regMsgData, _ := json.Marshal(regMsg)
 
 	msg := Message{
-		Type:   muxMessageTypePrefix + subscribeMesssage,
-		Paylod: regMsgData,
+		Type:    muxMessageTypePrefix + subscribeMesssage,
+		Payload: regMsgData,
 	}
 	msgData, _ := json.Marshal(msg)
 
@@ -192,8 +192,8 @@ func unregisterMessage(t *testing.T, typ MessageType) []byte {
 	regMsgData, _ := json.Marshal(regMsg)
 
 	msg := Message{
-		Type:   muxMessageTypePrefix + unsubscribeMesssage,
-		Paylod: regMsgData,
+		Type:    muxMessageTypePrefix + unsubscribeMesssage,
+		Payload: regMsgData,
 	}
 	msgData, _ := json.Marshal(msg)
 
