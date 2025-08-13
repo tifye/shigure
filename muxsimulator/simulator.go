@@ -25,7 +25,7 @@ type Simulator struct {
 
 func NewSimulator(seed1, seed2 uint64, w io.Writer) *Simulator {
 	logger := log.NewWithOptions(w, log.Options{
-		Level:           log.DebugLevel,
+		Level:           log.InfoLevel,
 		ReportTimestamp: false,
 	})
 
@@ -58,8 +58,5 @@ func (s *Simulator) Run() {
 }
 
 func (s *Simulator) Step() {
-	// Do random things
-	// s.logger.Info("doing something")
-
 	s.userSimulator.Step()
 }

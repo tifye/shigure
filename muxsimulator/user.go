@@ -81,12 +81,12 @@ func (s *userSimulator) connectUser() {
 	s.generateMuxID(sid[:])
 	cid := s.mux.Connect(sid, io.Discard)
 	s.connectedUsers[user{sessionID: sid, channelID: cid}] = struct{}{}
-	s.logger.Info("User connected", "sid", sid, "cid", cid)
+	s.logger.Debug("User connected", "sid", sid, "cid", cid)
 }
 
 func (s *userSimulator) disconnectUser() {
 	if len(s.connectedUsers) == 0 {
-		s.logger.Info("No users to disconnect")
+		s.logger.Debug("No users to disconnect")
 		return
 	}
 
@@ -104,7 +104,7 @@ func (s *userSimulator) disconnectUser() {
 
 	delete(s.connectedUsers, user)
 	s.disconnectedUsers[user] = struct{}{}
-	s.logger.Info("User disconnected", "sid", user.sessionID, "cid", user.channelID)
+	s.logger.Debug("User disconnected", "sid", user.sessionID, "cid", user.channelID)
 }
 
 func (s *userSimulator) invalidDisconnectUser() {
