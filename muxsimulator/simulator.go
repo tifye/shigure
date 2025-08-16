@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"math/rand/v2"
 
@@ -24,7 +25,6 @@ type Simulator struct {
 }
 
 func NewSimulator(seed1, seed2 uint64, logger *log.Logger) *Simulator {
-
 	rnd := rand.New(rand.NewPCG(seed1, seed2))
 	mux := mux.NewMux(log.New(io.Discard))
 	return &Simulator{
@@ -37,7 +37,7 @@ func NewSimulator(seed1, seed2 uint64, logger *log.Logger) *Simulator {
 	}
 }
 
-func (s *Simulator) Run() {
+func (s *Simulator) Run(ctx context.Context) {
 	s.logger.Info("Simulator started",
 		"seed1", s.seed1, "seed2", s.seed2,
 	)
@@ -49,6 +49,12 @@ func (s *Simulator) Run() {
 	}()
 
 	for range maxIterations {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		s.Step()
 	}
 }
