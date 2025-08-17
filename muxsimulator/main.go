@@ -22,7 +22,7 @@ func main() {
 	flag.Uint64Var(&seed1, "seed1", 0, "First seed value")
 	flag.Uint64Var(&seed2, "seed2", 0, "Second seed value")
 
-	flag.UintVar(&times, "time", 0, "Amount of times to run the simulation each time with random seeds")
+	flag.UintVar(&times, "times", 0, "Amount of times to run the simulation each time with random seeds")
 	flag.BoolVar(&endless, "endless", false, "Run the simulation an endless amount of times with random seeds until stopped")
 
 	flag.BoolVar(&debug, "debug", false, "Include debug logs")
