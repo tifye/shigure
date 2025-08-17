@@ -150,8 +150,8 @@ func (m *Mux) Session(sessionID ID) *Session {
 }
 
 type Message struct {
-	Type   MessageType     `json:"type"`
-	Paylod json.RawMessage `json:"payload,omitzero,omitempty"`
+	Type    MessageType     `json:"type"`
+	Payload json.RawMessage `json:"payload,omitzero,omitempty"`
 }
 
 func (m *Mux) Message(sessionID, channelID ID, data []byte) error {
@@ -183,7 +183,7 @@ func (m *Mux) Message(sessionID, channelID ID, data []byte) error {
 		err = m.handleMessage(channel, msg)
 	}
 
-	m.runMessageHooks(channel, msg.Type, msg.Paylod)
+	m.runMessageHooks(channel, msg.Type, msg.Payload)
 
 	return err
 }
@@ -200,7 +200,7 @@ func (m *Mux) handleMuxMessage(channel *Channel, msg Message) error {
 	switch action {
 	case subscribeMesssage:
 		var reg muxRegisterMessage
-		if err := json.Unmarshal(msg.Paylod, &reg); err != nil {
+		if err := json.Unmarshal(msg.Payload, &reg); err != nil {
 			return fmt.Errorf("unmarshal subscribe message: %s", err)
 		}
 
@@ -211,7 +211,7 @@ func (m *Mux) handleMuxMessage(channel *Channel, msg Message) error {
 		m.subscribeChannel(channel, reg.MessageType)
 	case unsubscribeMesssage:
 		var reg muxRegisterMessage
-		if err := json.Unmarshal(msg.Paylod, &reg); err != nil {
+		if err := json.Unmarshal(msg.Payload, &reg); err != nil {
 			return fmt.Errorf("unmarshal unsubscribe message: %s", err)
 		}
 
@@ -285,7 +285,7 @@ func (m *Mux) handleMessage(channel *Channel, msg Message) error {
 		return nil
 	}
 
-	return handler.HandleMessage(channel, msg.Paylod)
+	return handler.HandleMessage(channel, msg.Payload)
 }
 
 func (m *Mux) Sessions() []*Session {
@@ -324,8 +324,8 @@ func (m *Mux) sendSession(session *Session, typ MessageType, payload []byte, exc
 	assert.Assert(len(payload) <= MessageSizeLimit, "payload too long") // Does not exactly cover entire message length
 
 	msg := Message{
-		Type:   typ,
-		Paylod: payload,
+		Type:    typ,
+		Payload: payload,
 	}
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -376,8 +376,8 @@ func (m *Mux) SendChannel(channelID ID, typ MessageType, payload []byte) error {
 	}
 
 	data, err := json.Marshal(Message{
-		Type:   typ,
-		Paylod: payload,
+		Type:    typ,
+		Payload: payload,
 	})
 	if err != nil {
 		return fmt.Errorf("marshal: %s", err)
@@ -398,8 +398,8 @@ func (m *Mux) Broadcast(typ MessageType, payload []byte, exclude func(c *Channel
 	assert.Assert(len(payload) <= MessageSizeLimit, "payload too long") // Does not exactly cover entire message length
 
 	msg := Message{
-		Type:   typ,
-		Paylod: payload,
+		Type:    typ,
+		Payload: payload,
 	}
 	data, err := json.Marshal(msg)
 	if err != nil {
