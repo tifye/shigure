@@ -1,0 +1,23 @@
+services:
+  shigure:
+    container_name: shigure
+    build:
+      dockerfile: Dockerfile
+      context: .
+    restart: always
+    ports:
+      - ${PORT}:${PORT}
+    env_file:
+      - path: "./.env"
+        required: true
+    environment:
+      - YOUTUBE_DATA_API_KEY=${YOUTUBE_DATA_API_KEY}
+      - OTP_SECRET=${OTP_SECRET}
+      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY}
+      - Generate_JWT_SIGNING_KEY=${Generate_JWT_SIGNING_KEY}
+      - HOST=${HOST}
+      - PORT=${PORT}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
+      - DISCORD_CHAT_CATEGORY_ID=${DISCORD_CHAT_CATEGORY_ID}
