@@ -1,6 +1,8 @@
 package api
 
 import (
+	"net/http"
+
 	"github.com/charmbracelet/log"
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/viper"
@@ -8,6 +10,8 @@ import (
 
 func registerRoutes(e *echo.Echo, logger *log.Logger, config *viper.Viper, deps *ServerDependencies) {
 	auth := e.Group("", requireAuthMiddleware(logger, config))
+
+	e.GET("", hello)
 
 	e.GET("/activity", handleGetYoutubeActivity(deps.ActivityClient))
 	e.GET("/activity/svg", handleGetYoutubeActivitySVG(logger, deps.ActivityClient))
@@ -23,4 +27,8 @@ func registerRoutes(e *echo.Echo, logger *log.Logger, config *viper.Viper, deps 
 	e.POST("/auth/token/verify", handlePostVerifyToken(logger, config))
 
 	e.GET("/ws", handleWebsocketConn(logger, deps.WebSocketMux, deps.NewSessionCookie))
+}
+
+func hello(c echo.Context) error {
+	return c.String(http.StatusOK, "Nyaa~")
 }
