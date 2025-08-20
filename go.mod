@@ -1,6 +1,6 @@
 module github.com/tifye/shigure
 
-go 1.23.5
+go 1.25.0
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
