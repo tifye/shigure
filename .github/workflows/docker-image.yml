@@ -22,7 +22,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Build the Docker image
-      uses: docker/build-push-action@lastest
+      uses: docker/build-push-action@latest
       with:
         context: .
         push: true
