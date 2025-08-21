@@ -30,5 +30,5 @@ func registerRoutes(e *echo.Echo, logger *log.Logger, config *viper.Viper, deps 
 }
 
 func hello(c echo.Context) error {
-	return c.String(http.StatusOK, "Nyaa~!!")
+	return c.String(http.StatusOK, "Nyaa~")
 }
