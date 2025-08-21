@@ -10,6 +10,7 @@ import (
 
 func registerRoutes(e *echo.Echo, logger *log.Logger, config *viper.Viper, deps *ServerDependencies) {
 	e.GET("/", hello)
+	e.HEAD("/health", hello)
 
 	e.GET("/activity", handleGetYoutubeActivity(deps.ActivityClient))
 	e.GET("/activity/svg", handleGetYoutubeActivitySVG(logger, deps.ActivityClient))
