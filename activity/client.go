@@ -9,9 +9,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"text/template"
+	"time"
 
 	"github.com/charmbracelet/log"
 
@@ -27,9 +30,10 @@ type Activity struct {
 	Author       string
 	Url          string
 	ThumbnailUrl string
+	Duration     time.Duration
 }
 
-type Client struct {
+type YoutubeActivityClient struct {
 	apiKey string
 	logger *log.Logger
 
@@ -39,7 +43,7 @@ type Client struct {
 	fileMu          sync.Mutex
 }
 
-func NewClient(logger *log.Logger, apiKey string) *Client {
+func NewClient(logger *log.Logger, apiKey string) *YoutubeActivityClient {
 	assert.AssertNotNil(logger)
 	assert.AssertNotEmpty(apiKey)
 
@@ -48,7 +52,7 @@ func NewClient(logger *log.Logger, apiKey string) *Client {
 		panic(err)
 	}
 
-	client := &Client{
+	client := &YoutubeActivityClient{
 		logger: logger,
 		apiKey: apiKey,
 	}
@@ -58,7 +62,7 @@ func NewClient(logger *log.Logger, apiKey string) *Client {
 	return client
 }
 
-func (c *Client) SetYoutubeActivity(ctx context.Context, videoId string) error {
+func (c *YoutubeActivityClient) SetYoutubeActivity(ctx context.Context, videoId string) error {
 	assert.AssertNotEmpty(videoId)
 
 	if c.Activity().Id == videoId {
@@ -70,31 +74,86 @@ func (c *Client) SetYoutubeActivity(ctx context.Context, videoId string) error {
 		return fmt.Errorf("fetch video: %s", err)
 	}
 
+	if !isYoutubeVideoDurationLessThan1Day(resource.ContentDetails.Duration) {
+		c.logger.Info("skipping video 24h+ duration video", "videoId", resource.Id, "title", resource.Snippet.Title)
+		return nil
+	}
+
 	c.setActivity(Activity{
 		Id:           resource.Id,
 		Url:          fmt.Sprintf("https://www.youtube.com/watch?v=%s", resource.Id),
 		Title:        resource.Snippet.Title,
 		Author:       resource.Snippet.ChannelTitle,
 		ThumbnailUrl: resource.Snippet.Thumbnails.HighRes.Url,
+		Duration:     parseYoutubeVideoDuration(resource.ContentDetails.Duration),
 	})
 
 	return nil
 }
 
-func (c *Client) Activity() Activity {
+// Returned true/false whether the duration if less
+// than 1 day. Duration format follows ISO_8601.
+// See https://en.wikipedia.org/wiki/ISO_8601#Durations
+func isYoutubeVideoDurationLessThan1Day(duration string) bool {
+	return strings.HasPrefix(duration, "PT")
+}
+
+// Converts an ISO_8601 duration into a time.Duration.
+// Only accepts durations less than 1 day.
+// See https://en.wikipedia.org/wiki/ISO_8601#Durations
+func parseYoutubeVideoDuration(duration string) time.Duration {
+	// PT##H##M##S
+	assert.Assert(len(duration) <= 11, fmt.Sprintf("invalid duration string: %s", duration))
+	// PT+#T
+	assert.Assert(len(duration) >= 4, fmt.Sprintf("invalid duration string: %s", duration))
+	assert.Assert(strings.HasPrefix(duration, "PT"), "expected duration string to have 'PT' ISO_8601 prefix")
+
+	duration = strings.TrimPrefix(duration, "PT")
+	var (
+		hourPart    string
+		minutesPart string
+		secondsPart string
+	)
+	start := 0
+	for pos := range len(duration) {
+		switch duration[pos] {
+		case 'H':
+			hourPart = duration[start:pos]
+			start = pos + 1
+		case 'M':
+			minutesPart = duration[start:pos]
+			start = pos + 1
+		case 'S':
+			secondsPart = duration[start:pos]
+			start = pos + 1
+		default:
+			continue
+		}
+	}
+
+	assert.AssertNotEmpty(hourPart + minutesPart + secondsPart)
+
+	hours, _ := strconv.Atoi(hourPart)
+	minutes, _ := strconv.Atoi(minutesPart)
+	seconds, _ := strconv.Atoi(secondsPart)
+
+	return time.Duration(time.Hour*time.Duration(hours) + time.Minute*time.Duration(minutes) + time.Second*time.Duration(seconds))
+}
+
+func (c *YoutubeActivityClient) Activity() Activity {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.currentActivity
 }
 
-func (c *Client) setActivity(a Activity) {
+func (c *YoutubeActivityClient) setActivity(a Activity) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.currentActivity = a
 	c.dirty.Store(true)
 }
 
-func (c *Client) ClearActivity() {
+func (c *YoutubeActivityClient) ClearActivity() {
 	c.logger.Info("clearing activity")
 	c.setActivity(Activity{
 		Id:           "Chocola X Vanilla",
@@ -105,7 +164,7 @@ func (c *Client) ClearActivity() {
 	})
 }
 
-func (c *Client) StreamSVG(ctx context.Context, out io.Writer) error {
+func (c *YoutubeActivityClient) StreamSVG(ctx context.Context, out io.Writer) error {
 	if !c.dirty.Load() {
 		file, err := os.Open("data/activity.svg")
 		if err != nil {

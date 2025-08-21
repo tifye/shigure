@@ -25,7 +25,7 @@ var (
 )
 
 type ServerDependencies struct {
-	ActivityClient       *activity.Client
+	ActivityClient       *activity.YoutubeActivityClient
 	VSCodeActivityClient *activity.VSCodeActivityClient
 	WebSocketMux         *mux.Mux
 	SessionStore         sessions.Store

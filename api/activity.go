@@ -8,7 +8,7 @@ import (
 	"github.com/tifye/shigure/activity"
 )
 
-func handlePostYoutubeActivity(logger *log.Logger, ac *activity.Client) echo.HandlerFunc {
+func handlePostYoutubeActivity(logger *log.Logger, ac *activity.YoutubeActivityClient) echo.HandlerFunc {
 	type request struct {
 		VideoId string `param:"videoId"`
 	}
@@ -28,13 +28,13 @@ func handlePostYoutubeActivity(logger *log.Logger, ac *activity.Client) echo.Han
 	}
 }
 
-func handleGetYoutubeActivity(ac *activity.Client) echo.HandlerFunc {
+func handleGetYoutubeActivity(ac *activity.YoutubeActivityClient) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		return c.JSON(http.StatusOK, ac.Activity())
 	}
 }
 
-func handleGetYoutubeActivitySVG(logger *log.Logger, ac *activity.Client) echo.HandlerFunc {
+func handleGetYoutubeActivitySVG(logger *log.Logger, ac *activity.YoutubeActivityClient) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		c.Response().Header().Set(echo.HeaderContentType, "image/svg+xml")
 		c.Response().Header().Add("Cache-Control", "no-cache")
@@ -49,7 +49,7 @@ func handleGetYoutubeActivitySVG(logger *log.Logger, ac *activity.Client) echo.H
 	}
 }
 
-func handlePostClearYoutubeActivity(ac *activity.Client) echo.HandlerFunc {
+func handlePostClearYoutubeActivity(ac *activity.YoutubeActivityClient) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		ac.ClearActivity()
 		return c.JSON(http.StatusOK, ac.Activity())

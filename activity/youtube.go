@@ -25,6 +25,9 @@ type YoutubeVideoResource struct {
 			MediumRes YoutubeThumbnailData `json:"medium"`
 		} `json:"thumbnails"`
 	} `json:"snippet"`
+	ContentDetails struct {
+		Duration string `json:"duration"`
+	} `json:"contentDetails"`
 }
 
 type YoutubeThumbnailData struct {
@@ -44,7 +47,7 @@ func FetchYoutubeVideoResource(
 		return YoutubeVideoResource{}, err
 	}
 	query := url.Query()
-	query.Add("part", "snippet")
+	query.Add("part", "snippet,contentDetails")
 	query.Add("id", videoId)
 	query.Add("key", apiKey)
 	url.RawQuery = query.Encode()
