@@ -105,6 +105,7 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 	mux2.AddDisconnectHook(room.HandleDisconnect)
 
 	koiPond := personalsite.NewRoomHubV2(logger.WithPrefix("koi-pond"), mux2, "koi", config.GetString("DISCORD_WEBHOOK_URL"))
+	koiPond.NotifyContent = fmt.Sprintf("Someone is playing in the pond %s", discord.PreventURLEmbed("https://joshuadematas.me/?toys=koi"))
 	mux2.RegisterHandler(koiPond.MessageType(), koiPond)
 	mux2.AddDisconnectHook(koiPond.HandleDisconnect)
 

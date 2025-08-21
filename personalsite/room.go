@@ -25,8 +25,9 @@ type RoomHub struct {
 
 	// Keeps track of which users
 	// we have already notified about
-	userNotifs map[mux.ID]struct{}
-	notifMu    sync.RWMutex
+	userNotifs    map[mux.ID]struct{}
+	notifMu       sync.RWMutex
+	NotifyContent string
 }
 
 func NewRoomHubV2(
@@ -44,6 +45,7 @@ func NewRoomHubV2(
 		muxMessageType: messageType,
 		webhookURL:     webhookURL,
 		userNotifs:     map[mux.ID]struct{}{},
+		NotifyContent:  "Someone joined the room <https://www.joshuadematas.me>",
 	}
 }
 
@@ -82,7 +84,7 @@ func (r *RoomHub) HandleMessage(c *mux.Channel, msg []byte) error {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			notifyDiscord(ctx, r.webhookURL)
+			notifyDiscord(ctx, r.webhookURL, r.NotifyContent)
 		}()
 	}
 
@@ -134,8 +136,8 @@ type webhookBody struct {
 	Content string `json:"content"`
 }
 
-func notifyDiscord(ctx context.Context, webhookURL string) error {
-	body := webhookBody{Content: "Someone joined the room https://www.joshuadematas.me"}
+func notifyDiscord(ctx context.Context, webhookURL string, content string) error {
+	body := webhookBody{Content: content}
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		return fmt.Errorf("marhsall body: %s", err)
