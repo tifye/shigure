@@ -9,9 +9,9 @@ import (
 )
 
 func registerRoutes(e *echo.Echo, logger *log.Logger, config *viper.Viper, deps *ServerDependencies) {
-	auth := e.Group("", requireAuthMiddleware(logger, config))
+	e.GET("/", hello)
 
-	e.GET("", hello)
+	auth := e.Group("", requireAuthMiddleware(logger, config))
 
 	e.GET("/activity", handleGetYoutubeActivity(deps.ActivityClient))
 	e.GET("/activity/svg", handleGetYoutubeActivitySVG(logger, deps.ActivityClient))
