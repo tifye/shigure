@@ -37,6 +37,7 @@ type ActivityClient struct {
 	apiKey string
 	logger *log.Logger
 
+	lastUpdate      time.Time
 	currentActivity Activity
 	dirty           atomic.Bool
 	mu              sync.RWMutex
@@ -57,8 +58,17 @@ func NewClient(logger *log.Logger, apiKey string) *ActivityClient {
 		apiKey: apiKey,
 	}
 
+	ticker := time.NewTicker(30 * time.Minute)
+	go func() {
+		for range ticker.C {
+			a := client.Activity()
+			if time.Since(client.lastUpdate) >= a.Duration {
+				client.ClearActivity()
+			}
+		}
+	}()
+
 	client.ClearActivity()
-	client.dirty.Store(true)
 	return client
 }
 
@@ -87,6 +97,7 @@ func (c *ActivityClient) SetYoutubeActivity(ctx context.Context, videoId string)
 		ThumbnailUrl: resource.Snippet.Thumbnails.HighRes.Url,
 		Duration:     parseYoutubeVideoDuration(resource.ContentDetails.Duration),
 	})
+	c.lastUpdate = time.Now()
 
 	return nil
 }
@@ -154,6 +165,10 @@ func (c *ActivityClient) setActivity(a Activity) {
 }
 
 func (c *ActivityClient) ClearActivity() {
+	if c.Activity().Id == "Chocola X Vanilla" {
+		return
+	}
+
 	c.logger.Info("clearing activity")
 	c.setActivity(Activity{
 		Id:           "Chocola X Vanilla",
@@ -161,7 +176,9 @@ func (c *ActivityClient) ClearActivity() {
 		Author:       "ヾ( ￣O￣)ツ",
 		Url:          "https://www.joshuadematas.me/",
 		ThumbnailUrl: "https://i.pinimg.com/736x/71/eb/50/71eb502aea2fc4e816b67a5bbd114d27.jpg",
+		Duration:     time.Duration(55 * time.Minute),
 	})
+	c.dirty.Store(true)
 }
 
 func (c *ActivityClient) StreamSVG(ctx context.Context, out io.Writer) error {
