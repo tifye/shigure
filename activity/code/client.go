@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -45,7 +46,7 @@ var defaultAcitivty = VSCodeActivity{
 type ActivityClient struct {
 	logger     *log.Logger
 	activity   VSCodeActivity
-	lastUpdate time.Time
+	lastUpdate atomic.Value
 	mu         sync.RWMutex
 
 	store *CodeActivityStore
@@ -63,19 +64,23 @@ func NewActivityClient(
 	assert.AssertNotNil(mux)
 	assert.AssertNotNil(store)
 
+	lastUpdate := atomic.Value{}
+	lastUpdate.Store(time.Now())
+
 	ac := &ActivityClient{
 		logger:         logger,
 		mux:            mux,
 		muxMessageType: "vscode",
 		activity:       defaultAcitivty,
 		store:          store,
+		lastUpdate:     lastUpdate,
 	}
 
 	ticker := time.NewTicker(5 * time.Minute)
 	// intentionally run for lifetime
 	go func() {
 		for range ticker.C {
-			if time.Since(ac.lastUpdate) >= 15*time.Minute {
+			if time.Since(lastUpdate.Load().(time.Time)) >= 15*time.Minute {
 				ac.mu.Lock()
 				ac.activity = defaultAcitivty
 				ac.mu.Unlock()
@@ -107,7 +112,7 @@ func (c *ActivityClient) SetActivity(ctx context.Context, a VSCodeActivity) {
 		a.Filename = parts[len(parts)-1]
 	}
 	c.activity = a
-	c.lastUpdate = time.Now()
+	c.lastUpdate.Store(time.Now())
 
 	err := c.store.Insert(ctx, CodeActivity{
 		Repository: a.RepositoryURL,

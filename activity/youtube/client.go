@@ -37,7 +37,7 @@ type ActivityClient struct {
 	apiKey string
 	logger *log.Logger
 
-	lastUpdate      time.Time
+	lastUpdate      atomic.Value
 	currentActivity Activity
 	dirty           atomic.Bool
 	mu              sync.RWMutex
@@ -53,16 +53,20 @@ func NewClient(logger *log.Logger, apiKey string) *ActivityClient {
 		panic(err)
 	}
 
+	lastUpdate := atomic.Value{}
+	lastUpdate.Store(time.Now())
+
 	client := &ActivityClient{
-		logger: logger,
-		apiKey: apiKey,
+		logger:     logger,
+		apiKey:     apiKey,
+		lastUpdate: lastUpdate,
 	}
 
-	ticker := time.NewTicker(30 * time.Minute)
+	ticker := time.NewTicker(30 * time.Second)
 	go func() {
 		for range ticker.C {
 			a := client.Activity()
-			if time.Since(client.lastUpdate) >= a.Duration {
+			if time.Since(client.lastUpdate.Load().(time.Time)) >= a.Duration {
 				client.ClearActivity()
 			}
 		}
@@ -160,7 +164,7 @@ func (c *ActivityClient) setActivity(a Activity) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.currentActivity = a
-	c.lastUpdate = time.Now()
+	c.lastUpdate.Store(time.Now())
 	c.dirty.Store(true)
 }
 
