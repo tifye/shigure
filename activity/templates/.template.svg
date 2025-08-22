@@ -1,74 +1,73 @@
-<svg width="320" height="180" xmlns="http://www.w3.org/2000/svg"
-    xmlns:xlink="http://www.w3.org/1999/xlink" role="img">
+<svg width="320" height="180" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img">
     <title id="cardTitle">{{ .Title }}</title>
     <style>
         span {
-        color: white;
+            color: white;
         }
 
         .thumbnail {
-        aspect-ratio: 16 / 9;
-        width: 100%;
-        border-radius: 0.125rem;
-        position: relative;
-        overflow: hidden;
+            aspect-ratio: 16 / 9;
+            width: 100%;
+            border-radius: 0.125rem;
+            position: relative;
+            overflow: hidden;
         }
 
         .thumbnail .thumbnail-image {
-        position: absolute;
-        top: 0;
+            position: absolute;
+            top: 0;
         }
+
         .thumbnail .thumbnail-image img {
-        object-fit: cover;
+            object-fit: cover;
         }
 
         .scrolling-container span {
-        position: absolute;
-        top: 50%;
-        transform: translate(0%, -50%);
-        left: 100%;
-        white-space: nowrap;
-        color: white;
-        font-family: 'Trebuchet MS', sans-serif;
+            position: absolute;
+            top: 50%;
+            transform: translate(0%, -50%);
+            left: 100%;
+            white-space: nowrap;
+            color: white;
+            font-family: 'Trebuchet MS', sans-serif;
         }
 
         .scrolling-container span:first-child {
-        animation: text-scroll 10s linear normal infinite;
+            animation: text-scroll 10s linear normal infinite;
         }
 
         .scrolling-container span:nth-child(2) {
-        animation: text-scroll 10s 5s linear normal infinite;
+            animation: text-scroll 10s 5s linear normal infinite;
         }
 
         .scrolling-container {
-        position: relative;
-        height: 1.5rem;
+            position: relative;
+            height: 1.5rem;
 
-        background-color: #00000099;
-        z-index: 10;
+            background-color: #00000099;
+            z-index: 10;
         }
 
         @keyframes text-scroll {
-        from {
-        transform: translate(0%, -50%);
-        left: 100%;
-        }
-        to {
-        transform: translate(-200%, -50%);
-        left: 0%;
-        }
+            from {
+                transform: translate(0%, -50%);
+                left: 100%;
+            }
+
+            to {
+                transform: translate(-200%, -50%);
+                left: 0%;
+            }
         }
     </style>
     <foreignObject width="320" height="180">
-        <a href="{{ .ExternalLink }}" target="_BLANK" class="thumbnail"
-            xmlns="http://www.w3.org/1999/xhtml">
+        <a href="{{ .ExternalLink }}" target="_BLANK" class="thumbnail" xmlns="http://www.w3.org/1999/xhtml">
             <div class="scrolling-container">
                 <span>{{ .Title }}</span>
                 <span>{{ .Title }}</span>
             </div>
             <div class="thumbnail-image">
-                <img width="320" height="180"
-                    src="{{ .Base64Image }}" />
+                <img width="320" height="180" src="{{ .Base64Image }}" />
             </div>
         </a>
     </foreignObject>
