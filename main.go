@@ -16,6 +16,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 	"github.com/tifye/shigure/activity"
+	"github.com/tifye/shigure/activity/youtube"
 	"github.com/tifye/shigure/api"
 	"github.com/tifye/shigure/assert"
 	"github.com/tifye/shigure/discord"
@@ -153,7 +154,7 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 	}
 
 	return &api.ServerDependencies{
-		ActivityClient:       activity.NewClient(logger.WithPrefix("youtube"), youtubeApiKey),
+		ActivityClient:       youtube.NewClient(logger.WithPrefix("youtube"), youtubeApiKey),
 		VSCodeActivityClient: vsc,
 		WebSocketMux:         mux2,
 		SessionStore:         sessionStore,

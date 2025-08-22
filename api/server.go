@@ -12,6 +12,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/viper"
 	"github.com/tifye/shigure/activity"
+	"github.com/tifye/shigure/activity/youtube"
 	"github.com/tifye/shigure/mux"
 	"golang.org/x/time/rate"
 )
@@ -25,7 +26,7 @@ var (
 )
 
 type ServerDependencies struct {
-	ActivityClient       *activity.YoutubeActivityClient
+	ActivityClient       *youtube.ActivityClient
 	VSCodeActivityClient *activity.VSCodeActivityClient
 	WebSocketMux         *mux.Mux
 	SessionStore         sessions.Store

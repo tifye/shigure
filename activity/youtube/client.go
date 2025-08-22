@@ -1,4 +1,4 @@
-package activity
+package youtube
 
 import (
 	"context"
@@ -33,7 +33,7 @@ type Activity struct {
 	Duration     time.Duration
 }
 
-type YoutubeActivityClient struct {
+type ActivityClient struct {
 	apiKey string
 	logger *log.Logger
 
@@ -43,7 +43,7 @@ type YoutubeActivityClient struct {
 	fileMu          sync.Mutex
 }
 
-func NewClient(logger *log.Logger, apiKey string) *YoutubeActivityClient {
+func NewClient(logger *log.Logger, apiKey string) *ActivityClient {
 	assert.AssertNotNil(logger)
 	assert.AssertNotEmpty(apiKey)
 
@@ -52,7 +52,7 @@ func NewClient(logger *log.Logger, apiKey string) *YoutubeActivityClient {
 		panic(err)
 	}
 
-	client := &YoutubeActivityClient{
+	client := &ActivityClient{
 		logger: logger,
 		apiKey: apiKey,
 	}
@@ -62,7 +62,7 @@ func NewClient(logger *log.Logger, apiKey string) *YoutubeActivityClient {
 	return client
 }
 
-func (c *YoutubeActivityClient) SetYoutubeActivity(ctx context.Context, videoId string) error {
+func (c *ActivityClient) SetYoutubeActivity(ctx context.Context, videoId string) error {
 	assert.AssertNotEmpty(videoId)
 
 	if c.Activity().Id == videoId {
@@ -140,20 +140,20 @@ func parseYoutubeVideoDuration(duration string) time.Duration {
 	return time.Duration(time.Hour*time.Duration(hours) + time.Minute*time.Duration(minutes) + time.Second*time.Duration(seconds))
 }
 
-func (c *YoutubeActivityClient) Activity() Activity {
+func (c *ActivityClient) Activity() Activity {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.currentActivity
 }
 
-func (c *YoutubeActivityClient) setActivity(a Activity) {
+func (c *ActivityClient) setActivity(a Activity) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.currentActivity = a
 	c.dirty.Store(true)
 }
 
-func (c *YoutubeActivityClient) ClearActivity() {
+func (c *ActivityClient) ClearActivity() {
 	c.logger.Info("clearing activity")
 	c.setActivity(Activity{
 		Id:           "Chocola X Vanilla",
@@ -164,7 +164,7 @@ func (c *YoutubeActivityClient) ClearActivity() {
 	})
 }
 
-func (c *YoutubeActivityClient) StreamSVG(ctx context.Context, out io.Writer) error {
+func (c *ActivityClient) StreamSVG(ctx context.Context, out io.Writer) error {
 	if !c.dirty.Load() {
 		file, err := os.Open("data/activity.svg")
 		if err != nil {

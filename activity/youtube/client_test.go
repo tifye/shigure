@@ -1,4 +1,4 @@
-package activity
+package youtube
 
 import (
 	"testing"
