@@ -42,7 +42,7 @@ func (s *CodeActivityStore) Insert(ctx context.Context, ca CodeActivity) error {
 		code_chunk,
 		reported_at
 	)
-	VALUES (?,?,?,?,?,?,?,?,)
+	VALUES (?,?,?,?,?,?,?,?)
 	`
 	_, err := s.db.ExecContext(
 		ctx, query,
