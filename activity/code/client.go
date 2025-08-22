@@ -178,6 +178,10 @@ func (c *ActivityClient) languageStats(ctx context.Context) ([]LanguageStat, err
 		return nil, fmt.Errorf("get stored language reports: %s", err)
 	}
 
+	if len(reports) == 0 {
+		return nil, nil
+	}
+
 	var totalReports uint
 	for _, report := range reports {
 		totalReports = totalReports + report.TimesReported
@@ -212,6 +216,10 @@ func (c *ActivityClient) sessionStats(ctx context.Context) ([]SessionStat, error
 	sessions, err := c.store.Sessions(ctx, 5)
 	if err != nil {
 		return nil, fmt.Errorf("get stored sessions: %s", err)
+	}
+
+	if len(sessions) == 0 {
+		return nil, nil
 	}
 
 	stats := make([]SessionStat, len(sessions))
