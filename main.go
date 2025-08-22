@@ -15,12 +15,14 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
-	"github.com/tifye/shigure/activity"
+	"github.com/tifye/shigure/activity/code"
+	"github.com/tifye/shigure/activity/youtube"
 	"github.com/tifye/shigure/api"
 	"github.com/tifye/shigure/assert"
 	"github.com/tifye/shigure/discord"
 	"github.com/tifye/shigure/mux"
 	"github.com/tifye/shigure/personalsite"
+	"github.com/tifye/shigure/storage"
 )
 
 func main() {
@@ -109,8 +111,14 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 	mux2.RegisterHandler(koiPond.MessageType(), koiPond)
 	mux2.AddDisconnectHook(koiPond.HandleDisconnect)
 
-	vsc := activity.NewVSCodeActivityClient(logger.WithPrefix("vscode"), mux2)
-	mux2.RegisterHandler(vsc.MessageType(), vsc)
+	db, err := storage.InitDuckDB()
+	if err != nil {
+		return nil, cfs, err
+	}
+	cfs.Defer(db.Close)
+	codeActivityStore := code.NewCodeActivityStore(db)
+	codeActivityClient := code.NewActivityClient(logger.WithPrefix("code"), mux2, codeActivityStore)
+	mux2.RegisterHandler(codeActivityClient.MessageType(), codeActivityClient)
 
 	discordBot, err := discord.NewChatBot(
 		logger.WithPrefix("chatbot"),
@@ -145,11 +153,12 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 	}
 
 	return &api.ServerDependencies{
-		ActivityClient:       activity.NewClient(logger.WithPrefix("youtube"), youtubeApiKey),
-		VSCodeActivityClient: vsc,
-		WebSocketMux:         mux2,
-		SessionStore:         sessionStore,
-		NewSessionCookie:     newSessionCookie,
+		YoutubeActivityClient: youtube.NewClient(logger.WithPrefix("youtube"), youtubeApiKey),
+		CodeActivityClient:    codeActivityClient,
+		CodeActivityStore:     codeActivityStore,
+		WebSocketMux:          mux2,
+		SessionStore:          sessionStore,
+		NewSessionCookie:      newSessionCookie,
 	}, cfs, nil
 }
 

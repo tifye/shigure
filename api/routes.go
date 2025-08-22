@@ -12,18 +12,20 @@ func registerRoutes(e *echo.Echo, logger *log.Logger, config *viper.Viper, deps 
 	e.GET("/", hello)
 	e.HEAD("/health", hello)
 
-	e.GET("/activity", handleGetYoutubeActivity(deps.ActivityClient))
-	e.GET("/activity/svg", handleGetYoutubeActivitySVG(logger, deps.ActivityClient))
-	e.GET("/youtube/activity/svg", handleGetYoutubeActivitySVG(logger, deps.ActivityClient)) // legacy
-	e.POST("/activity/clear", handlePostClearYoutubeActivity(deps.ActivityClient), requireAuthMiddleware(logger, config))
-	e.POST("/activity/youtube/:videoId", handlePostYoutubeActivity(logger, deps.ActivityClient), requireAuthMiddleware(logger, config))
+	e.GET("/activity", handleGetYoutubeActivity(deps.YoutubeActivityClient))
+	e.GET("/activity/svg", handleGetYoutubeActivitySVG(logger, deps.YoutubeActivityClient))
+	e.GET("/youtube/activity/svg", handleGetYoutubeActivitySVG(logger, deps.YoutubeActivityClient)) // legacy
+	e.POST("/activity/clear", handlePostClearYoutubeActivity(deps.YoutubeActivityClient), requireAuthMiddleware(logger, config))
+	e.POST("/activity/youtube/:videoId", handlePostYoutubeActivity(logger, deps.YoutubeActivityClient), requireAuthMiddleware(logger, config))
 
-	e.GET("/activity/vscode", handleGetVSCodeActivity(logger, deps.VSCodeActivityClient))
-	e.POST("/activity/vscode", handlePostVSCodeActivity(logger, deps.VSCodeActivityClient), requireAuthMiddleware(logger, config))
+	e.GET("/activity/vscode", handleGetVSCodeActivity(logger, deps.CodeActivityClient))
+	e.POST("/activity/vscode", handlePostVSCodeActivity(logger, deps.CodeActivityClient), requireAuthMiddleware(logger, config))
 
 	e.GET("/auth/token", handleGetToken(logger, config))
 	e.GET("/auth/token/generate", handleGetGenerateToken(logger, config), requireAuthMiddleware(logger, config))
 	e.POST("/auth/token/verify", handlePostVerifyToken(logger, config))
+
+	e.GET("/stats/code", handleGetCodeStats(logger, deps.CodeActivityClient))
 
 	e.GET("/ws", handleWebsocketConn(logger, deps.WebSocketMux, deps.NewSessionCookie))
 }

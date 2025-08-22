@@ -7,9 +7,13 @@ meta {
 get {
   url: {{host}}/auth/token/generate
   body: none
-  auth: digest
+  auth: bearer
 }
 
 headers {
   Passcode: 997371
+}
+
+auth:bearer {
+  token: {{token}}
 }
