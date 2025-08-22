@@ -233,8 +233,15 @@ func (c *ActivityClient) sessionStats(ctx context.Context) ([]SessionStat, error
 	stats := make([]SessionStat, len(sessions))
 	for i, session := range sessions {
 		repositories := make([]string, len(session.TopRepositories))
-		for i, repo := range session.TopRepositories {
-			repositories[i] = repo.(string)
+		for j, repo := range session.TopRepositories {
+			switch v := repo.(type) {
+			case string:
+				repositories[j] = v
+			case []byte:
+				repositories[j] = string(v)
+			default:
+				repositories[j] = fmt.Sprint(v)
+			}
 		}
 		stats[i] = SessionStat{
 			Start: session.Start,
