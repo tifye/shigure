@@ -16,7 +16,7 @@ create or replace view sessions as (
             lag(reported_at, 1, reported_at) over (order by reported_at) as prev_time,
             age(reported_at, prev_time) as time_diff,
             case
-                when time_diff > interval 30 minute
+                when time_diff > interval 1 hour
                 then 1 else 0
             end as is_new_session,
         from code_activity
