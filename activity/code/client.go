@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"path"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -105,6 +106,12 @@ func (c *ActivityClient) SetActivity(ctx context.Context, a VSCodeActivity) {
 
 	c.logger.Debug("updating code activity", "repository", a.RepositoryURL)
 
+	if a.Filename != "" {
+		a.Filename = path.Base(strings.ReplaceAll(a.Filename, "\\", "/"))
+		if a.Filename == "." || a.Filename == "/" || a.Filename == `\` {
+			a.Filename = ""
+		}
+	}
 	parts := strings.FieldsFunc(a.Filename, func(r rune) bool {
 		return r == '\\' || r == '/'
 	})
@@ -252,7 +259,7 @@ func (c *ActivityClient) sessionStats(ctx context.Context) ([]SessionStat, error
 func (c *ActivityClient) totalTimeSpent(ctx context.Context) (string, error) {
 	ts, err := c.store.TotalHours(ctx)
 	if err != nil {
-		return "", nil
+		return "", fmt.Errorf("get total hours: %w", err)
 	}
 
 	return time.Duration(time.Second * time.Duration(ts.Seconds)).String(), nil
