@@ -101,9 +101,6 @@ func (c *ActivityClient) HandleMessage(_ *mux.Channel, _ []byte) error {
 }
 
 func (c *ActivityClient) SetActivity(ctx context.Context, a VSCodeActivity) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.logger.Debug("updating code activity", "repository", a.RepositoryURL)
 
 	if a.Filename != "" {
@@ -118,7 +115,11 @@ func (c *ActivityClient) SetActivity(ctx context.Context, a VSCodeActivity) {
 	if len(a.Filename) > 0 {
 		a.Filename = parts[len(parts)-1]
 	}
+
+	c.mu.Lock()
 	c.activity = a
+	c.mu.Unlock()
+
 	c.lastUpdate.Store(time.Now())
 
 	err := c.store.Insert(ctx, CodeActivity{
