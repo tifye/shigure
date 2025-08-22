@@ -59,18 +59,22 @@ func (s *CodeActivityStore) Insert(ctx context.Context, ca CodeActivity) error {
 }
 
 type StoredLanguageReport struct {
-	Language      string    `db:"language"`
-	TimesReported uint      `db:"times_reported"`
-	LastReported  time.Time `db:"last_reported"`
+	Language      string `db:"language"`
+	TimesReported uint   `db:"times_reported"`
+	// (TimesReported / AllReports) * 100
+	OverallPercent float64   `db:"percent"`
+	LastReported   time.Time `db:"last_reported"`
 }
 
 func (s *CodeActivityStore) LanguagesReports(ctx context.Context) ([]StoredLanguageReport, error) {
 	query := `
-	select language, 
+	set variable total = (select count(*) from code_activity);
+	select "language", 
 		count(*) as times_reported,
+		times_reported / getvariable('total') * 100 as "percent",
 		max(reported_at) as last_reported
 	from code_activity
-	group by language
+	group by "language"
 	order by times_reported desc;
 	`
 	var reports []StoredLanguageReport

@@ -156,7 +156,12 @@ type Stats struct {
 }
 
 func (c *ActivityClient) CodeStats(ctx context.Context) (Stats, error) {
-	languageStats, err := c.languageStats(ctx)
+	totalTimeSpent, err := c.totalTimeSpent(ctx)
+	if err != nil {
+		return Stats{}, fmt.Errorf("total time spent: %s", err)
+	}
+
+	languageStats, err := c.languageStats(ctx, totalTimeSpent)
 	if err != nil {
 		return Stats{}, fmt.Errorf("language stats: %s", err)
 	}
@@ -166,13 +171,8 @@ func (c *ActivityClient) CodeStats(ctx context.Context) (Stats, error) {
 		return Stats{}, fmt.Errorf("session stats: %s", err)
 	}
 
-	totalTimeSpent, err := c.totalTimeSpent(ctx)
-	if err != nil {
-		return Stats{}, fmt.Errorf("total time spent: %s", err)
-	}
-
 	return Stats{
-		TotalTimeSpent: totalTimeSpent,
+		TotalTimeSpent: totalTimeSpent.String(),
 		LatestSessions: sessionStats,
 		LanguageStats:  languageStats,
 	}, nil
@@ -186,7 +186,9 @@ type LanguageStat struct {
 	LastUsed      time.Time `json:"lastUsed"`
 }
 
-func (c *ActivityClient) languageStats(ctx context.Context) ([]LanguageStat, error) {
+func (c *ActivityClient) languageStats(ctx context.Context, totalTimeSpent time.Duration) ([]LanguageStat, error) {
+	assert.Assert(totalTimeSpent >= 0, "invalid total time spent")
+
 	reports, err := c.store.LanguagesReports(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get stored language reports: %s", err)
@@ -205,9 +207,7 @@ func (c *ActivityClient) languageStats(ctx context.Context) ([]LanguageStat, err
 	for i, report := range reports {
 		percent := math.Round(float64(report.TimesReported) / float64(totalReports) * 100)
 
-		// For now reports are generated on a 2sec interval.
-		// In the future we want to use DuckDB for this.
-		timeSpent := time.Duration(time.Second * 2 * time.Duration(report.TimesReported))
+		timeSpent := time.Duration((report.OverallPercent / 100) * float64(totalTimeSpent))
 		stats[i] = LanguageStat{
 			Language:      report.Language,
 			Percentage:    uint(percent),
@@ -254,13 +254,11 @@ func (c *ActivityClient) sessionStats(ctx context.Context) ([]SessionStat, error
 	return stats, nil
 }
 
-// totalTimeSpent returns a human readible string
-// noting the the total time sum of all sessions.
-func (c *ActivityClient) totalTimeSpent(ctx context.Context) (string, error) {
+func (c *ActivityClient) totalTimeSpent(ctx context.Context) (time.Duration, error) {
 	ts, err := c.store.TotalHours(ctx)
 	if err != nil {
-		return "", fmt.Errorf("get total hours: %w", err)
+		return 0, fmt.Errorf("get total hours: %w", err)
 	}
 
-	return time.Duration(time.Second * time.Duration(ts.Seconds)).String(), nil
+	return time.Duration(time.Second * time.Duration(ts.Seconds)), nil
 }
