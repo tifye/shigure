@@ -94,7 +94,7 @@ func (c *VSCodeActivityClient) HandleMessage(_ *mux.Channel, _ []byte) error {
 	return nil
 }
 
-func (c *VSCodeActivityClient) SetActivity(a VSCodeActivity) {
+func (c *VSCodeActivityClient) SetActivity(ctx context.Context, a VSCodeActivity) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -105,7 +105,7 @@ func (c *VSCodeActivityClient) SetActivity(a VSCodeActivity) {
 	c.activity = a
 	c.lastUpdate = time.Now()
 
-	err := c.store.Insert(context.Background(), CodeActivity{
+	err := c.store.Insert(ctx, CodeActivity{
 		Repository: a.RepositoryURL,
 		Workspace:  a.Workspace,
 		Filename:   a.Filename,
@@ -124,7 +124,6 @@ func (c *VSCodeActivityClient) SetActivity(a VSCodeActivity) {
 		c.logger.Error("marshal vscode activity", "err", err, "activity", a)
 		return
 	}
-
 	c.mux.Broadcast(c.muxMessageType, msgb, nil)
 }
 

@@ -56,7 +56,7 @@ func handlePostClearYoutubeActivity(ac *activity.YoutubeActivityClient) echo.Han
 	}
 }
 
-func handlePostVSCodeActivity(logger *log.Logger, ac *activity.VSCodeActivityClient) echo.HandlerFunc {
+func handlePostVSCodeActivity(_ *log.Logger, ac *activity.VSCodeActivityClient) echo.HandlerFunc {
 	type request activity.VSCodeActivity
 	return func(c echo.Context) error {
 		var req request
@@ -64,9 +64,7 @@ func handlePostVSCodeActivity(logger *log.Logger, ac *activity.VSCodeActivityCli
 			return err
 		}
 
-		logger.Debug("post vscode activity")
-
-		ac.SetActivity(activity.VSCodeActivity(req))
+		ac.SetActivity(c.Request().Context(), activity.VSCodeActivity(req))
 		return c.NoContent(http.StatusOK)
 	}
 }
