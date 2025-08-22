@@ -105,6 +105,7 @@ func (c *ActivityClient) SetYoutubeActivity(ctx context.Context, videoId string)
 
 // Returned true/false whether the duration if less
 // than 1 day. Duration format follows ISO_8601.
+//
 // See https://en.wikipedia.org/wiki/ISO_8601#Durations
 func isYoutubeVideoDurationLessThan1Day(duration string) bool {
 	return strings.HasPrefix(duration, "PT")
@@ -112,6 +113,7 @@ func isYoutubeVideoDurationLessThan1Day(duration string) bool {
 
 // Converts an ISO_8601 duration into a time.Duration.
 // Only accepts durations less than 1 day.
+//
 // See https://en.wikipedia.org/wiki/ISO_8601#Durations
 func parseYoutubeVideoDuration(duration string) time.Duration {
 	// PT##H##M##S

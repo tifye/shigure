@@ -143,7 +143,8 @@ func (c *ActivityClient) Activity() VSCodeActivity {
 }
 
 type Stats struct {
-	LanguageStats []LanguageStat `json:"languages"`
+	LatestSessions []SessionStat  `json:"latestSessions"`
+	LanguageStats  []LanguageStat `json:"languages"`
 }
 
 func (c *ActivityClient) CodeStats(ctx context.Context) (Stats, error) {
@@ -152,8 +153,14 @@ func (c *ActivityClient) CodeStats(ctx context.Context) (Stats, error) {
 		return Stats{}, fmt.Errorf("language stats: %s", err)
 	}
 
+	sessionStats, err := c.sessionStats(ctx)
+	if err != nil {
+		return Stats{}, fmt.Errorf("session stats: %s", err)
+	}
+
 	return Stats{
-		LanguageStats: languageStats,
+		LatestSessions: sessionStats,
+		LanguageStats:  languageStats,
 	}, nil
 }
 
@@ -161,16 +168,14 @@ type LanguageStat struct {
 	Language      string    `json:"language"`
 	Percentage    uint      `json:"percentage"`
 	TimesReported uint      `json:"timesReported"`
-	HoursSpent    float64   `json:"hoursSpent"`
-	MinutesSpent  float64   `json:"minutesSpent"`
-	SecondsSpent  float64   `json:"secondsSpent"`
+	TimeSpent     string    `json:"timeSpent"`
 	LastUsed      time.Time `json:"lastUsed"`
 }
 
 func (c *ActivityClient) languageStats(ctx context.Context) ([]LanguageStat, error) {
 	reports, err := c.store.LanguagesReports(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("getting language reports: %s", err)
+		return nil, fmt.Errorf("get stored language reports: %s", err)
 	}
 
 	var totalReports uint
@@ -189,10 +194,32 @@ func (c *ActivityClient) languageStats(ctx context.Context) ([]LanguageStat, err
 			Language:      report.Language,
 			Percentage:    uint(percent),
 			TimesReported: report.TimesReported,
-			HoursSpent:    timeSpent.Hours(),
-			MinutesSpent:  timeSpent.Minutes(),
-			SecondsSpent:  timeSpent.Seconds(),
+			TimeSpent:     timeSpent.String(),
 			LastUsed:      report.LastReported,
+		}
+	}
+
+	return stats, nil
+}
+
+type SessionStat struct {
+	Start    time.Time `json:"start"`
+	End      time.Time `json:"end"`
+	Duration string    `json:"duration"`
+}
+
+func (c *ActivityClient) sessionStats(ctx context.Context) ([]SessionStat, error) {
+	sessions, err := c.store.Sessions(ctx, 5)
+	if err != nil {
+		return nil, fmt.Errorf("get stored sessions: %s", err)
+	}
+
+	stats := make([]SessionStat, len(sessions))
+	for i, session := range sessions {
+		stats[i] = SessionStat{
+			Start:    session.Start,
+			End:      session.End,
+			Duration: session.End.Sub(session.Start).String(),
 		}
 	}
 
