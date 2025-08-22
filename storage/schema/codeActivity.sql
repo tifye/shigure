@@ -13,6 +13,7 @@ create or replace view sessions as (
     with marked as (
         select
             reported_at,
+            repository,
             lag(reported_at, 1, reported_at) over (order by reported_at) as prev_time,
             age(reported_at, prev_time) as time_diff,
             case
@@ -24,7 +25,8 @@ create or replace view sessions as (
     sessioned as (
         select
             sum(is_new_session) over (order by reported_at rows unbounded preceding) as session_id,
-            reported_at
+            reported_at,
+            repository
         from marked
     )
 
@@ -32,6 +34,7 @@ create or replace view sessions as (
         session_id as id,
         min(reported_at) as "start",
         max(reported_at) as "end",
+        approx_top_k(repository, 5) as top_repositories,
         age("end", "start") as duration
     from sessioned
     group by id

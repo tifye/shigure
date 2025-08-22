@@ -84,16 +84,47 @@ type StoredSession struct {
 	ID    uint      `db:"id"`
 	Start time.Time `db:"start"`
 	End   time.Time `db:"end"`
+	// String slice of the top most used
+	// repositories during a given session in order of
+	// most -> least used.
+	TopRepositories []any `db:"top_repositories"`
 }
 
 func (s *CodeActivityStore) Sessions(ctx context.Context, limit uint) ([]StoredSession, error) {
 	assert.Assert(limit < 100, "limit too large")
 
 	query := `
-	select id, "start", "end" from sessions
+	select id, "start", "end", top_repositories from sessions
 	limit ?
 	`
 	var sessions []StoredSession
 	err := s.db.SelectContext(ctx, &sessions, query, limit)
 	return sessions, err
+}
+
+type StoredTimeSpent struct {
+	Seconds float64 `db:"seconds"`
+	Minutes float64 `db:"minutes"`
+	Hours   float64 `db:"hours"`
+	Days    float64 `db:"days"`
+	Weeks   float64 `db:"weeks"`
+}
+
+func (s *CodeActivityStore) TotalHours(ctx context.Context) (StoredTimeSpent, error) {
+	query := `
+	with totalSeconds as (
+		select sum(epoch(duration)) as seconds from sessions
+	)
+	select 
+		seconds,
+		seconds/60 as minutes,
+		minutes/60 as hours,
+		hours/24 as days,
+		days/7 as weeks
+	from totalSeconds
+	`
+	row := s.db.QueryRowxContext(ctx, query)
+	var timeSpent StoredTimeSpent
+	err := row.StructScan(&timeSpent)
+	return timeSpent, err
 }

@@ -143,6 +143,7 @@ func (c *ActivityClient) Activity() VSCodeActivity {
 }
 
 type Stats struct {
+	TotalTimeSpent string         `json:"totalTimeSpent"`
 	LatestSessions []SessionStat  `json:"latestSessions"`
 	LanguageStats  []LanguageStat `json:"languages"`
 }
@@ -158,7 +159,13 @@ func (c *ActivityClient) CodeStats(ctx context.Context) (Stats, error) {
 		return Stats{}, fmt.Errorf("session stats: %s", err)
 	}
 
+	totalTimeSpent, err := c.totalTimeSpent(ctx)
+	if err != nil {
+		return Stats{}, fmt.Errorf("total time spent: %s", err)
+	}
+
 	return Stats{
+		TotalTimeSpent: totalTimeSpent,
 		LatestSessions: sessionStats,
 		LanguageStats:  languageStats,
 	}, nil
@@ -207,9 +214,10 @@ func (c *ActivityClient) languageStats(ctx context.Context) ([]LanguageStat, err
 }
 
 type SessionStat struct {
-	Start    time.Time `json:"start"`
-	End      time.Time `json:"end"`
-	Duration string    `json:"duration"`
+	Start           time.Time `json:"start"`
+	End             time.Time `json:"end"`
+	Duration        string    `json:"duration"`
+	TopRepositories []string  `json:"repositories"`
 }
 
 func (c *ActivityClient) sessionStats(ctx context.Context) ([]SessionStat, error) {
@@ -224,12 +232,28 @@ func (c *ActivityClient) sessionStats(ctx context.Context) ([]SessionStat, error
 
 	stats := make([]SessionStat, len(sessions))
 	for i, session := range sessions {
+		repositories := make([]string, len(session.TopRepositories))
+		for i, repo := range session.TopRepositories {
+			repositories[i] = repo.(string)
+		}
 		stats[i] = SessionStat{
-			Start:    session.Start,
-			End:      session.End,
-			Duration: session.End.Sub(session.Start).String(),
+			Start:           session.Start,
+			End:             session.End,
+			Duration:        session.End.Sub(session.Start).String(),
+			TopRepositories: repositories,
 		}
 	}
 
 	return stats, nil
+}
+
+// totalTimeSpent returns a human readible string
+// noting the the total time sum of all sessions.
+func (c *ActivityClient) totalTimeSpent(ctx context.Context) (string, error) {
+	ts, err := c.store.TotalHours(ctx)
+	if err != nil {
+		return "", nil
+	}
+
+	return time.Duration(time.Second * time.Duration(ts.Seconds)).String(), nil
 }
