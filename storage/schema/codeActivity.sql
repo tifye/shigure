@@ -3,8 +3,8 @@ create table if not exists code_activity (
     workspace varchar check (length(workspace) < 64),
     "filename" varchar check (length("filename") < 64),
     "language" varchar check (length("language") < 32),
-    "row" smallint check ("row" >= 0),
-    "column" smallint check ("column" >= 0),
+    "row" integer check ("row" >= 0),
+    "column" integer check ("column" >= 0),
     code_chunk varchar,
     reported_at timestamp
 );
