@@ -97,7 +97,6 @@ func (c *ActivityClient) SetYoutubeActivity(ctx context.Context, videoId string)
 		ThumbnailUrl: resource.Snippet.Thumbnails.HighRes.Url,
 		Duration:     parseYoutubeVideoDuration(resource.ContentDetails.Duration),
 	})
-	c.lastUpdate = time.Now()
 
 	return nil
 }
@@ -161,6 +160,7 @@ func (c *ActivityClient) setActivity(a Activity) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.currentActivity = a
+	c.lastUpdate = time.Now()
 	c.dirty.Store(true)
 }
 
