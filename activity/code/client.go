@@ -250,7 +250,7 @@ func (c *ActivityClient) sessionStats(ctx context.Context) ([]SessionStat, error
 }
 
 func (c *ActivityClient) totalTimeSpent(ctx context.Context) (time.Duration, error) {
-	ts, err := c.store.TotalHours(ctx)
+	ts, err := c.store.TotatTimeSpent(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("get total hours: %w", err)
 	}

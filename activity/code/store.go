@@ -114,10 +114,10 @@ type StoredTimeSpent struct {
 	Weeks   float64 `db:"weeks"`
 }
 
-func (s *CodeActivityStore) TotalHours(ctx context.Context) (StoredTimeSpent, error) {
+func (s *CodeActivityStore) TotatTimeSpent(ctx context.Context) (StoredTimeSpent, error) {
 	query := `
 	with totalSeconds as (
-		select sum(epoch(duration)) as seconds from sessions
+		select coalesce(sum(epoch(duration)), 0) as seconds from sessions
 	)
 	select 
 		seconds,
