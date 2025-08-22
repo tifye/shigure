@@ -15,7 +15,7 @@ type CodeActivity struct {
 	Language   string    `db:"language"`
 	Row        uint      `db:"row"`
 	Col        uint      `db:"column"`
-	CodeChunk  string    `db:"chunk"`
+	CodeChunk  string    `db:"code_chunk"`
 	ReportedAt time.Time `db:"reported_at"`
 }
 
