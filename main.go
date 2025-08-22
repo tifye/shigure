@@ -113,7 +113,7 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 
 	db, err := storage.InitDuckDB()
 	if err != nil {
-		return
+		return nil, cfs, err
 	}
 	cfs.Defer(db.Close)
 	codeActivityStore := code.NewCodeActivityStore(db)
