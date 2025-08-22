@@ -11,7 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/viper"
-	"github.com/tifye/shigure/activity"
+	"github.com/tifye/shigure/activity/code"
 	"github.com/tifye/shigure/activity/youtube"
 	"github.com/tifye/shigure/mux"
 	"golang.org/x/time/rate"
@@ -27,7 +27,7 @@ var (
 
 type ServerDependencies struct {
 	ActivityClient       *youtube.ActivityClient
-	VSCodeActivityClient *activity.VSCodeActivityClient
+	VSCodeActivityClient *code.ActivityClient
 	WebSocketMux         *mux.Mux
 	SessionStore         sessions.Store
 	NewSessionCookie     func(s *sessions.Session) (*http.Cookie, error)

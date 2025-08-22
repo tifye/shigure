@@ -15,7 +15,7 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
-	"github.com/tifye/shigure/activity"
+	"github.com/tifye/shigure/activity/code"
 	"github.com/tifye/shigure/activity/youtube"
 	"github.com/tifye/shigure/api"
 	"github.com/tifye/shigure/assert"
@@ -97,13 +97,6 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 		}
 	}()
 
-	db, err := storage.InitDuckDB()
-	if err != nil {
-		return
-	}
-	cfs.Defer(db.Close)
-	codeActivityStore := activity.NewCodeActivityStore(db)
-
 	youtubeApiKey := config.GetString("YOUTUBE_DATA_API_KEY")
 	assert.AssertNotEmpty(youtubeApiKey)
 
@@ -118,7 +111,13 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 	mux2.RegisterHandler(koiPond.MessageType(), koiPond)
 	mux2.AddDisconnectHook(koiPond.HandleDisconnect)
 
-	vsc := activity.NewVSCodeActivityClient(logger.WithPrefix("vscode"), mux2, codeActivityStore)
+	db, err := storage.InitDuckDB()
+	if err != nil {
+		return
+	}
+	cfs.Defer(db.Close)
+	codeActivityStore := code.NewCodeActivityStore(db)
+	vsc := code.NewActivityClient(logger.WithPrefix("code"), mux2, codeActivityStore)
 	mux2.RegisterHandler(vsc.MessageType(), vsc)
 
 	discordBot, err := discord.NewChatBot(

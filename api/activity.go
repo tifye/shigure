@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/labstack/echo/v4"
-	"github.com/tifye/shigure/activity"
+	"github.com/tifye/shigure/activity/code"
 	"github.com/tifye/shigure/activity/youtube"
 )
 
@@ -57,20 +57,20 @@ func handlePostClearYoutubeActivity(ac *youtube.ActivityClient) echo.HandlerFunc
 	}
 }
 
-func handlePostVSCodeActivity(_ *log.Logger, ac *activity.VSCodeActivityClient) echo.HandlerFunc {
-	type request activity.VSCodeActivity
+func handlePostVSCodeActivity(_ *log.Logger, ac *code.ActivityClient) echo.HandlerFunc {
+	type request code.VSCodeActivity
 	return func(c echo.Context) error {
 		var req request
 		if err := c.Bind(&req); err != nil {
 			return err
 		}
 
-		ac.SetActivity(c.Request().Context(), activity.VSCodeActivity(req))
+		ac.SetActivity(c.Request().Context(), code.VSCodeActivity(req))
 		return c.NoContent(http.StatusOK)
 	}
 }
 
-func handleGetVSCodeActivity(logger *log.Logger, ac *activity.VSCodeActivityClient) echo.HandlerFunc {
+func handleGetVSCodeActivity(logger *log.Logger, ac *code.ActivityClient) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		logger.Debug("get vscode activity")
 		return c.JSON(http.StatusOK, ac.Activity())

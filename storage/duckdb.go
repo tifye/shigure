@@ -13,7 +13,7 @@ var codeActivitySchema []byte
 type DuckDB = *sqlx.DB
 
 func InitDuckDB() (DuckDB, error) {
-	db, err := sqlx.Connect("duckdb", "/data/analytics.db")
+	db, err := sqlx.Connect("duckdb", "./data/analytics.db")
 	if err != nil {
 		return nil, err
 	}

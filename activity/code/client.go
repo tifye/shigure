@@ -1,4 +1,4 @@
-package activity
+package code
 
 import (
 	"context"
@@ -42,7 +42,7 @@ var defaultAcitivty = VSCodeActivity{
 	`,
 }
 
-type VSCodeActivityClient struct {
+type ActivityClient struct {
 	logger     *log.Logger
 	activity   VSCodeActivity
 	lastUpdate time.Time
@@ -54,16 +54,16 @@ type VSCodeActivityClient struct {
 	muxMessageType string
 }
 
-func NewVSCodeActivityClient(
+func NewActivityClient(
 	logger *log.Logger,
 	mux *mux.Mux,
 	store *CodeActivityStore,
-) *VSCodeActivityClient {
+) *ActivityClient {
 	assert.AssertNotNil(logger)
 	assert.AssertNotNil(mux)
 	assert.AssertNotNil(store)
 
-	ac := &VSCodeActivityClient{
+	ac := &ActivityClient{
 		logger:         logger,
 		mux:            mux,
 		muxMessageType: "vscode",
@@ -86,17 +86,19 @@ func NewVSCodeActivityClient(
 	return ac
 }
 
-func (c *VSCodeActivityClient) MessageType() string {
+func (c *ActivityClient) MessageType() string {
 	return c.muxMessageType
 }
 
-func (c *VSCodeActivityClient) HandleMessage(_ *mux.Channel, _ []byte) error {
+func (c *ActivityClient) HandleMessage(_ *mux.Channel, _ []byte) error {
 	return nil
 }
 
-func (c *VSCodeActivityClient) SetActivity(ctx context.Context, a VSCodeActivity) {
+func (c *ActivityClient) SetActivity(ctx context.Context, a VSCodeActivity) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	c.logger.Debug("updating code activity", "repository", a.RepositoryURL)
 
 	parts := strings.FieldsFunc(a.Filename, func(r rune) bool {
 		return r == '\\' || r == '/'
@@ -127,7 +129,7 @@ func (c *VSCodeActivityClient) SetActivity(ctx context.Context, a VSCodeActivity
 	c.mux.Broadcast(c.muxMessageType, msgb, nil)
 }
 
-func (c *VSCodeActivityClient) Activity() VSCodeActivity {
+func (c *ActivityClient) Activity() VSCodeActivity {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.activity
