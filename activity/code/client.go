@@ -103,7 +103,9 @@ func (c *ActivityClient) SetActivity(ctx context.Context, a VSCodeActivity) {
 	parts := strings.FieldsFunc(a.Filename, func(r rune) bool {
 		return r == '\\' || r == '/'
 	})
-	a.Filename = parts[len(parts)-1]
+	if len(a.Filename) > 0 {
+		a.Filename = parts[len(parts)-1]
+	}
 	c.activity = a
 	c.lastUpdate = time.Now()
 
