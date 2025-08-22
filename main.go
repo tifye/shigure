@@ -21,6 +21,7 @@ import (
 	"github.com/tifye/shigure/discord"
 	"github.com/tifye/shigure/mux"
 	"github.com/tifye/shigure/personalsite"
+	"github.com/tifye/shigure/storage"
 )
 
 func main() {
@@ -95,6 +96,13 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 		}
 	}()
 
+	db, err := storage.InitDuckDB()
+	if err != nil {
+		return
+	}
+	cfs.Defer(db.Close)
+	codeActivityStore := activity.NewCodeActivityStore(db)
+
 	youtubeApiKey := config.GetString("YOUTUBE_DATA_API_KEY")
 	assert.AssertNotEmpty(youtubeApiKey)
 
@@ -109,7 +117,7 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 	mux2.RegisterHandler(koiPond.MessageType(), koiPond)
 	mux2.AddDisconnectHook(koiPond.HandleDisconnect)
 
-	vsc := activity.NewVSCodeActivityClient(logger.WithPrefix("vscode"), mux2)
+	vsc := activity.NewVSCodeActivityClient(logger.WithPrefix("vscode"), mux2, codeActivityStore)
 	mux2.RegisterHandler(vsc.MessageType(), vsc)
 
 	discordBot, err := discord.NewChatBot(

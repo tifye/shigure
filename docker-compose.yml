@@ -7,6 +7,8 @@ services:
     restart: always
     ports:
       - ${PORT}:${PORT}
+    volumes:
+      - ./data:/data
     env_file:
       - path: "./.env"
         required: true
