@@ -32,7 +32,7 @@ func NewCodeActivityStore(db storage.DuckDB) *CodeActivityStore {
 
 func (s *CodeActivityStore) Insert(ctx context.Context, ca CodeActivity) error {
 	query := `
-	INSERT INTO code_activity (
+	insert into code_activity (
 		repository,
 		workspace,
 		filename,
@@ -42,7 +42,7 @@ func (s *CodeActivityStore) Insert(ctx context.Context, ca CodeActivity) error {
 		code_chunk,
 		reported_at
 	)
-	VALUES (?,?,?,?,?,?,?,?)
+	values (?,?,?,?,?,?,?,?)
 	`
 	_, err := s.db.ExecContext(
 		ctx, query,
@@ -56,4 +56,28 @@ func (s *CodeActivityStore) Insert(ctx context.Context, ca CodeActivity) error {
 		ca.ReportedAt,
 	)
 	return err
+}
+
+type LanguageReport struct {
+	Language      string    `db:"language"`
+	TimesReported uint      `db:"times_reported"`
+	LastReported  time.Time `db:"last_reported"`
+}
+
+func (s *CodeActivityStore) LanguagesReports(ctx context.Context) ([]LanguageReport, error) {
+	query := `
+	select language, 
+		count(*) as times_reported,
+		max(reported_at) as last_reported
+	from code_activity
+	group by language
+	order by times_reported desc;
+	`
+	var rows []LanguageReport
+	err := s.db.SelectContext(ctx, &rows, query)
+	if err != nil {
+		return nil, err
+	}
+
+	return rows, err
 }

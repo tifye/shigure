@@ -26,11 +26,12 @@ var (
 )
 
 type ServerDependencies struct {
-	ActivityClient       *youtube.ActivityClient
-	VSCodeActivityClient *code.ActivityClient
-	WebSocketMux         *mux.Mux
-	SessionStore         sessions.Store
-	NewSessionCookie     func(s *sessions.Session) (*http.Cookie, error)
+	YoutubeActivityClient *youtube.ActivityClient
+	CodeActivityClient    *code.ActivityClient
+	CodeActivityStore     *code.CodeActivityStore
+	WebSocketMux          *mux.Mux
+	SessionStore          sessions.Store
+	NewSessionCookie      func(s *sessions.Session) (*http.Cookie, error)
 }
 
 func NewServer(logger *log.Logger, config *viper.Viper, deps *ServerDependencies) *http.Server {

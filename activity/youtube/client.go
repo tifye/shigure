@@ -53,14 +53,12 @@ func NewClient(logger *log.Logger, apiKey string) *ActivityClient {
 		panic(err)
 	}
 
-	lastUpdate := atomic.Value{}
-	lastUpdate.Store(time.Now())
-
 	client := &ActivityClient{
 		logger:     logger,
 		apiKey:     apiKey,
-		lastUpdate: lastUpdate,
+		lastUpdate: atomic.Value{},
 	}
+	client.lastUpdate.Store(time.Now())
 
 	ticker := time.NewTicker(30 * time.Second)
 	go func() {

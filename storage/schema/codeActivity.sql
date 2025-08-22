@@ -6,5 +6,5 @@ CREATE TABLE IF NOT EXISTS code_activity (
     "row" SMALLINT CHECK ("row" >= 0),
     "column" SMALLINT CHECK ("column" >= 0),
     code_chunk VARCHAR,
-    reported_at TIMESTAMPTZ
+    reported_at TIMESTAMP
 );

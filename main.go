@@ -117,8 +117,8 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 	}
 	cfs.Defer(db.Close)
 	codeActivityStore := code.NewCodeActivityStore(db)
-	vsc := code.NewActivityClient(logger.WithPrefix("code"), mux2, codeActivityStore)
-	mux2.RegisterHandler(vsc.MessageType(), vsc)
+	codeActivityClient := code.NewActivityClient(logger.WithPrefix("code"), mux2, codeActivityStore)
+	mux2.RegisterHandler(codeActivityClient.MessageType(), codeActivityClient)
 
 	discordBot, err := discord.NewChatBot(
 		logger.WithPrefix("chatbot"),
@@ -153,11 +153,12 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 	}
 
 	return &api.ServerDependencies{
-		ActivityClient:       youtube.NewClient(logger.WithPrefix("youtube"), youtubeApiKey),
-		VSCodeActivityClient: vsc,
-		WebSocketMux:         mux2,
-		SessionStore:         sessionStore,
-		NewSessionCookie:     newSessionCookie,
+		YoutubeActivityClient: youtube.NewClient(logger.WithPrefix("youtube"), youtubeApiKey),
+		CodeActivityClient:    codeActivityClient,
+		CodeActivityStore:     codeActivityStore,
+		WebSocketMux:          mux2,
+		SessionStore:          sessionStore,
+		NewSessionCookie:      newSessionCookie,
 	}, cfs, nil
 }
 

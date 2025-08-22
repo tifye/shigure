@@ -3,6 +3,8 @@ package code
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -64,23 +66,21 @@ func NewActivityClient(
 	assert.AssertNotNil(mux)
 	assert.AssertNotNil(store)
 
-	lastUpdate := atomic.Value{}
-	lastUpdate.Store(time.Now())
-
 	ac := &ActivityClient{
 		logger:         logger,
 		mux:            mux,
 		muxMessageType: "vscode",
 		activity:       defaultAcitivty,
 		store:          store,
-		lastUpdate:     lastUpdate,
+		lastUpdate:     atomic.Value{},
 	}
+	ac.lastUpdate.Store(time.Now())
 
 	ticker := time.NewTicker(5 * time.Minute)
 	// intentionally run for lifetime
 	go func() {
 		for range ticker.C {
-			if time.Since(lastUpdate.Load().(time.Time)) >= 15*time.Minute {
+			if time.Since(ac.lastUpdate.Load().(time.Time)) >= 15*time.Minute {
 				ac.mu.Lock()
 				ac.activity = defaultAcitivty
 				ac.mu.Unlock()
@@ -140,4 +140,61 @@ func (c *ActivityClient) Activity() VSCodeActivity {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.activity
+}
+
+type Stats struct {
+	LanguageStats []LanguageStat `json:"languages"`
+}
+
+func (c *ActivityClient) CodeStats(ctx context.Context) (Stats, error) {
+	languageStats, err := c.languageStats(ctx)
+	if err != nil {
+		return Stats{}, fmt.Errorf("language stats: %s", err)
+	}
+
+	return Stats{
+		LanguageStats: languageStats,
+	}, nil
+}
+
+type LanguageStat struct {
+	Language      string    `json:"language"`
+	Percentage    uint      `json:"percentage"`
+	TimesReported uint      `json:"timesReported"`
+	HoursSpent    float64   `json:"hoursSpent"`
+	MinutesSpent  float64   `json:"minutesSpent"`
+	SecondsSpent  float64   `json:"secondsSpent"`
+	LastUsed      time.Time `json:"lastUsed"`
+}
+
+func (c *ActivityClient) languageStats(ctx context.Context) ([]LanguageStat, error) {
+	reports, err := c.store.LanguagesReports(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting language reports: %s", err)
+	}
+
+	var totalReports uint
+	for _, report := range reports {
+		totalReports = totalReports + report.TimesReported
+	}
+
+	stats := make([]LanguageStat, len(reports))
+	for i, report := range reports {
+		percent := math.Round(float64(report.TimesReported) / float64(totalReports) * 100)
+
+		// For now reports are generated on a 2sec interval.
+		// In the future we want to use DuckDB for this.
+		timeSpent := time.Duration(time.Second * 2 * time.Duration(report.TimesReported))
+		stats[i] = LanguageStat{
+			Language:      report.Language,
+			Percentage:    uint(percent),
+			TimesReported: report.TimesReported,
+			HoursSpent:    timeSpent.Hours(),
+			MinutesSpent:  timeSpent.Minutes(),
+			SecondsSpent:  timeSpent.Seconds(),
+			LastUsed:      report.LastReported,
+		}
+	}
+
+	return stats, nil
 }
