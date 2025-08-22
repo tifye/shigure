@@ -180,7 +180,7 @@ func (c *ActivityClient) CodeStats(ctx context.Context) (Stats, error) {
 
 type LanguageStat struct {
 	Language      string    `json:"language"`
-	Percentage    uint      `json:"percentage"`
+	Percentage    float64   `json:"percentage"`
 	TimesReported uint      `json:"timesReported"`
 	TimeSpent     string    `json:"timeSpent"`
 	LastUsed      time.Time `json:"lastUsed"`
@@ -198,21 +198,14 @@ func (c *ActivityClient) languageStats(ctx context.Context, totalTimeSpent time.
 		return nil, nil
 	}
 
-	var totalReports uint
-	for _, report := range reports {
-		totalReports = totalReports + report.TimesReported
-	}
-
 	stats := make([]LanguageStat, len(reports))
 	for i, report := range reports {
-		percent := math.Round(float64(report.TimesReported) / float64(totalReports) * 100)
-
 		timeSpent := time.Duration((report.OverallPercent / 100) * float64(totalTimeSpent))
 		stats[i] = LanguageStat{
 			Language:      report.Language,
-			Percentage:    uint(percent),
+			Percentage:    math.Floor(report.OverallPercent*100) / 100,
 			TimesReported: report.TimesReported,
-			TimeSpent:     timeSpent.String(),
+			TimeSpent:     timeSpent.Truncate(time.Second).String(),
 			LastUsed:      report.LastReported,
 		}
 	}
@@ -244,9 +237,11 @@ func (c *ActivityClient) sessionStats(ctx context.Context) ([]SessionStat, error
 			repositories[i] = repo.(string)
 		}
 		stats[i] = SessionStat{
-			Start:           session.Start,
-			End:             session.End,
-			Duration:        session.End.Sub(session.Start).String(),
+			Start: session.Start,
+			End:   session.End,
+			Duration: session.End.Sub(session.Start).
+				Truncate(time.Second).
+				String(),
 			TopRepositories: repositories,
 		}
 	}
@@ -260,5 +255,5 @@ func (c *ActivityClient) totalTimeSpent(ctx context.Context) (time.Duration, err
 		return 0, fmt.Errorf("get total hours: %w", err)
 	}
 
-	return time.Duration(time.Second * time.Duration(ts.Seconds)), nil
+	return time.Duration(time.Second * time.Duration(ts.Seconds)).Truncate(time.Second), nil
 }
