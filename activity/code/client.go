@@ -151,9 +151,10 @@ func (c *ActivityClient) Activity() VSCodeActivity {
 }
 
 type Stats struct {
-	TotalTimeSpent string         `json:"totalTimeSpent"`
-	LatestSessions []SessionStat  `json:"latestSessions"`
-	LanguageStats  []LanguageStat `json:"languages"`
+	TotalTimeSpent  string           `json:"totalTimeSpent"`
+	LatestSessions  []SessionStat    `json:"latestSessions"`
+	LanguageStats   []LanguageStat   `json:"languages"`
+	RepositoryStats []RepositoryStat `json:"repositories"`
 }
 
 func (c *ActivityClient) CodeStats(ctx context.Context) (Stats, error) {
@@ -167,24 +168,59 @@ func (c *ActivityClient) CodeStats(ctx context.Context) (Stats, error) {
 		return Stats{}, fmt.Errorf("language stats: %s", err)
 	}
 
+	repositoryStats, err := c.repositoryStats(ctx, totalTimeSpent)
+	if err != nil {
+		return Stats{}, fmt.Errorf("repository stats: %s", err)
+	}
+
 	sessionStats, err := c.sessionStats(ctx)
 	if err != nil {
 		return Stats{}, fmt.Errorf("session stats: %s", err)
 	}
 
 	return Stats{
-		TotalTimeSpent: totalTimeSpent.String(),
-		LatestSessions: sessionStats,
-		LanguageStats:  languageStats,
+		TotalTimeSpent:  totalTimeSpent.String(),
+		LatestSessions:  sessionStats,
+		LanguageStats:   languageStats,
+		RepositoryStats: repositoryStats,
 	}, nil
 }
 
+type RepositoryStat struct {
+	Repository string  `json:"repository"`
+	Percentage float64 `json:"percentage"`
+	TimeSpent  string  `json:"timeSpent"`
+}
+
+func (c *ActivityClient) repositoryStats(ctx context.Context, totalTimeSpent time.Duration) ([]RepositoryStat, error) {
+	assert.Assert(totalTimeSpent >= 0, "invalid total time spent")
+
+	reports, err := c.store.RepositoryReports(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get stored repository reports: %s", err)
+	}
+
+	if len(reports) == 0 {
+		return nil, nil
+	}
+
+	stats := make([]RepositoryStat, len(reports))
+	for i, report := range reports {
+		timeSpent := time.Duration((report.OverallPercent / 100) * float64(totalTimeSpent))
+		stats[i] = RepositoryStat{
+			Repository: report.Repository,
+			Percentage: math.Floor(report.OverallPercent*100) / 100,
+			TimeSpent:  timeSpent.Truncate(time.Second).String(),
+		}
+	}
+
+	return stats, nil
+}
+
 type LanguageStat struct {
-	Language      string    `json:"language"`
-	Percentage    float64   `json:"percentage"`
-	TimesReported uint      `json:"timesReported"`
-	TimeSpent     string    `json:"timeSpent"`
-	LastUsed      time.Time `json:"lastUsed"`
+	Language   string  `json:"language"`
+	Percentage float64 `json:"percentage"`
+	TimeSpent  string  `json:"timeSpent"`
 }
 
 func (c *ActivityClient) languageStats(ctx context.Context, totalTimeSpent time.Duration) ([]LanguageStat, error) {
@@ -203,11 +239,9 @@ func (c *ActivityClient) languageStats(ctx context.Context, totalTimeSpent time.
 	for i, report := range reports {
 		timeSpent := time.Duration((report.OverallPercent / 100) * float64(totalTimeSpent))
 		stats[i] = LanguageStat{
-			Language:      report.Language,
-			Percentage:    math.Floor(report.OverallPercent*100) / 100,
-			TimesReported: report.TimesReported,
-			TimeSpent:     timeSpent.Truncate(time.Second).String(),
-			LastUsed:      report.LastReported,
+			Language:   report.Language,
+			Percentage: math.Floor(report.OverallPercent*100) / 100,
+			TimeSpent:  timeSpent.Truncate(time.Second).String(),
 		}
 	}
 

@@ -58,6 +58,30 @@ func (s *CodeActivityStore) Insert(ctx context.Context, ca CodeActivity) error {
 	return err
 }
 
+type StoredRepositoryReport struct {
+	Repository    string `db:"repository"`
+	TimesReported uint   `db:"times_reported"`
+	// (TimesReported / AllReports) * 100
+	OverallPercent float64   `db:"percent"`
+	LastReported   time.Time `db:"last_reported"`
+}
+
+func (s *CodeActivityStore) RepositoryReports(ctx context.Context) ([]StoredRepositoryReport, error) {
+	query := `
+	set variable total = (select count(*) from code_activity);
+	select repository,
+		count(*) as times_reported,
+		times_reported / getvariable('total') * 100 as "percent",
+		max(reported_at) as last_reported
+	from code_activity
+	group by repository
+	order by times_reported desc;
+	`
+	var reports []StoredRepositoryReport
+	err := s.db.SelectContext(ctx, &reports, query)
+	return reports, err
+}
+
 type StoredLanguageReport struct {
 	Language      string `db:"language"`
 	TimesReported uint   `db:"times_reported"`
