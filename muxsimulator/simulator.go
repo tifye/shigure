@@ -13,6 +13,10 @@ const (
 	maxIterations = 100_000
 )
 
+type SimulatorConfig struct {
+	userSimulator userSimulatorConfig
+}
+
 type Simulator struct {
 	logger *log.Logger
 	rnd    *rand.Rand
@@ -24,7 +28,11 @@ type Simulator struct {
 	mux *mux.Mux
 }
 
-func NewSimulator(seed1, seed2 uint64, logger *log.Logger) *Simulator {
+func NewSimulator(
+	seed1, seed2 uint64,
+	logger *log.Logger,
+	config SimulatorConfig,
+) *Simulator {
 	rnd := rand.New(rand.NewPCG(seed1, seed2))
 	mux := mux.NewMux(log.New(io.Discard))
 	return &Simulator{
@@ -32,7 +40,7 @@ func NewSimulator(seed1, seed2 uint64, logger *log.Logger) *Simulator {
 		rnd:           rnd,
 		seed1:         seed1,
 		seed2:         seed2,
-		userSimulator: newUserSimulator(logger, mux, rnd),
+		userSimulator: newUserSimulator(logger, mux, rnd, config.userSimulator),
 		mux:           mux,
 	}
 }

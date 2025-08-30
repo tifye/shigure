@@ -55,7 +55,7 @@ func runTimes(ctx context.Context, logger *log.Logger) {
 	for range times {
 		seed1 := rand.Uint64()
 		seed2 := rand.Uint64()
-		sim := NewSimulator(seed1, seed2, logger)
+		sim := NewSimulator(seed1, seed2, logger, V1Config())
 		sim.Run(ctx)
 
 		if err := ctx.Err(); err != nil {
@@ -69,7 +69,7 @@ func runEndless(ctx context.Context, logger *log.Logger) {
 	for {
 		seed1 := rand.Uint64()
 		seed2 := rand.Uint64()
-		sim := NewSimulator(seed1, seed2, logger)
+		sim := NewSimulator(seed1, seed2, logger, V1Config())
 		sim.Run(ctx)
 
 		if err := ctx.Err(); err != nil {
@@ -99,7 +99,7 @@ func runSeeded(ctx context.Context, logger *log.Logger) {
 		seed2 = rand.Uint64()
 	}
 
-	sim := NewSimulator(seed1, seed2, logger)
+	sim := NewSimulator(seed1, seed2, logger, V1Config())
 	sim.Run(ctx)
 
 	if err := ctx.Err(); err != nil {

@@ -11,6 +11,16 @@ import (
 	"github.com/tifye/shigure/mux"
 )
 
+type userSimulatorConfig struct {
+	// Change out of 100 that a new user will connect
+	UserConnectProbability uint
+	// Chance out of 100 that an existing user will disconnect
+	UserDisconnectProbability uint
+	// Chance out of 100 that a disconnect will be called on a
+	// non-existent user
+	InvalidDisconnectFaultProbability uint
+}
+
 type userSimulator struct {
 	logger *log.Logger
 	rnd    *rand.Rand
@@ -20,13 +30,7 @@ type userSimulator struct {
 	numDisconnects        uint
 	numInvalidDisconnects uint
 
-	// Change out of 100 that a new user will connect
-	userConnectProbability uint
-	// Chance out of 100 that an existing user will disconnect
-	userDisconnectProbability uint
-	// Chance out of 100 that a disconnect will be called on a
-	// non-existent user
-	invalidDisconnectFaultProbability uint
+	config userSimulatorConfig
 
 	connectedUsers    map[user]struct{}
 	disconnectedUsers map[user]struct{}
@@ -39,7 +43,12 @@ type user struct {
 	channelID mux.ID
 }
 
-func newUserSimulator(logger *log.Logger, mux *mux.Mux, rnd *rand.Rand) *userSimulator {
+func newUserSimulator(
+	logger *log.Logger,
+	mux *mux.Mux,
+	rnd *rand.Rand,
+	config userSimulatorConfig,
+) *userSimulator {
 	assert.AssertNotNil(logger)
 	assert.AssertNotNil(mux)
 	assert.AssertNotNil(rnd)
@@ -48,9 +57,7 @@ func newUserSimulator(logger *log.Logger, mux *mux.Mux, rnd *rand.Rand) *userSim
 		logger: logger,
 		rnd:    rnd,
 
-		userConnectProbability:            rnd.UintN(probabilityRange),
-		userDisconnectProbability:         rnd.UintN(probabilityRange),
-		invalidDisconnectFaultProbability: rnd.UintN(probabilityRange),
+		config: config,
 
 		connectedUsers:    map[user]struct{}{},
 		disconnectedUsers: map[user]struct{}{},
@@ -67,9 +74,9 @@ invalidDisconnectFaultProbability: %d%%
 numConnects: %d
 numDisconnects: %d
 numInvalidDisconnects: %d
-`, s.userConnectProbability,
-		s.userDisconnectProbability,
-		s.invalidDisconnectFaultProbability,
+`, s.config.UserConnectProbability,
+		s.config.UserDisconnectProbability,
+		s.config.InvalidDisconnectFaultProbability,
 		s.numConnects,
 		s.numDisconnects,
 		s.numInvalidDisconnects,
@@ -77,12 +84,12 @@ numInvalidDisconnects: %d
 }
 
 func (s *userSimulator) Step() {
-	if Chance(s.rnd, s.userConnectProbability) {
+	if Chance(s.rnd, s.config.UserConnectProbability) {
 		s.connectUser()
 	}
 
-	if Chance(s.rnd, s.userDisconnectProbability) {
-		if Chance(s.rnd, s.invalidDisconnectFaultProbability) {
+	if Chance(s.rnd, s.config.UserDisconnectProbability) {
+		if Chance(s.rnd, s.config.InvalidDisconnectFaultProbability) {
 			s.invalidDisconnectUser()
 		} else {
 			s.disconnectUser()
