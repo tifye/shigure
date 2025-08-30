@@ -26,8 +26,10 @@ require (
 	github.com/duckdb/duckdb-go-bindings/linux-amd64 v0.1.12 // indirect
 	github.com/duckdb/duckdb-go-bindings/linux-arm64 v0.1.12 // indirect
 	github.com/duckdb/duckdb-go-bindings/windows-amd64 v0.1.12 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/marcboeker/go-duckdb/arrowmapping v0.0.10 // indirect
 	github.com/marcboeker/go-duckdb/mapping v0.0.11 // indirect
+	github.com/spf13/cobra v1.9.1 // indirect
 )
 
 require (
@@ -69,7 +71,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/pflag v1.0.7 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
