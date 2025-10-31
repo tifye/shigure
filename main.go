@@ -22,6 +22,7 @@ import (
 	"github.com/tifye/shigure/discord"
 	"github.com/tifye/shigure/mux"
 	"github.com/tifye/shigure/personalsite"
+	"github.com/tifye/shigure/sshapp"
 	"github.com/tifye/shigure/storage"
 )
 
@@ -96,6 +97,21 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 			err = errors.Join(err, ferr)
 		}
 	}()
+
+	app, err := sshapp.NewSSHApp(sshapp.SSHAppOptions{
+		Host:        config.GetString("SSH_APP_HOST"),
+		Port:        config.GetString("SSH_APP_PORT"),
+		HostKeyPath: config.GetString("SSH_APP_HOST_KEY_PATH"),
+	}, logger.WithPrefix("ssh-app"))
+	if err != nil {
+		return nil, cfs, err
+	}
+	app.Start()
+	cfs.Defer(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		return app.Stop(ctx)
+	})
 
 	youtubeApiKey := config.GetString("YOUTUBE_DATA_API_KEY")
 	assert.AssertNotEmpty(youtubeApiKey)
