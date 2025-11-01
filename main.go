@@ -99,9 +99,10 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 	}()
 
 	app, err := sshapp.NewSSHApp(sshapp.SSHAppOptions{
-		Host:        config.GetString("SSH_APP_HOST"),
-		Port:        config.GetString("SSH_APP_PORT"),
-		HostKeyPath: config.GetString("SSH_APP_HOST_KEY_PATH"),
+		Host:             config.GetString("SSH_APP_HOST"),
+		Port:             config.GetString("SSH_APP_PORT"),
+		HostKeyPath:      config.GetString("SSH_APP_HOST_KEY_PATH"),
+		AllowedHostsPath: "./allowedHosts",
 	}, logger.WithPrefix("ssh-app"))
 	if err != nil {
 		return nil, cfs, err
