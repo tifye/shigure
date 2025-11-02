@@ -21,17 +21,19 @@ type SSHApp struct {
 }
 
 type SSHAppOptions struct {
-	Host        string
-	Port        string
-	HostKeyPath string
+	Host             string
+	Port             string
+	HostKeyPath      string
+	AllowedHostsPath string
 }
 
 func NewSSHApp(opts SSHAppOptions, logger *log.Logger) (*SSHApp, error) {
+	h := newAllowedHosts(opts.AllowedHostsPath)
 	s, err := wish.NewServer(
 		wish.WithAddress(net.JoinHostPort(opts.Host, opts.Port)),
 		wish.WithHostKeyPath(opts.HostKeyPath),
 		wish.WithMiddleware(
-			wishTea.Middleware(teaHandler),
+			wishTea.Middleware(teaHandler(h, logger)),
 			activeterm.Middleware(),
 			logging.MiddlewareWithLogger(logger),
 		),
@@ -64,20 +66,28 @@ func (s *SSHApp) Stop(ctx context.Context) error {
 	return nil
 }
 
-func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
-	pty, _, _ := s.Pty()
+func teaHandler(h *allowedHosts, logger *log.Logger) wishTea.Handler {
+	return func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
+		pty, _, _ := s.Pty()
 
-	renderer := wishTea.MakeRenderer(s)
+		renderer := wishTea.MakeRenderer(s)
 
-	m := model{
-		term:       pty.Term,
-		profile:    renderer.ColorProfile().Name(),
-		width:      uint(pty.Window.Width),
-		height:     uint(pty.Window.Height),
-		isDarkMode: renderer.HasDarkBackground(),
+		isAdmin, err := h.isAllowed(s.PublicKey())
+		if err != nil {
+			logger.Error("Failed to lookup allowed host", "error", err)
+		}
+
+		m := model{
+			term:       pty.Term,
+			profile:    renderer.ColorProfile().Name(),
+			width:      uint(pty.Window.Width),
+			height:     uint(pty.Window.Height),
+			isDarkMode: renderer.HasDarkBackground(),
+			isAdmin:    isAdmin,
+		}
+
+		return m, []tea.ProgramOption{tea.WithAltScreen()}
 	}
-
-	return m, []tea.ProgramOption{tea.WithAltScreen()}
 }
 
 type model struct {
@@ -86,6 +96,7 @@ type model struct {
 	width      uint
 	height     uint
 	isDarkMode bool
+	isAdmin    bool
 }
 
 func (m model) Init() tea.Cmd {
@@ -104,9 +115,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	userType := "User"
+	if m.isAdmin {
+		userType = "Admin"
+	}
+
 	colorScheme := "Light mode"
 	if m.isDarkMode {
 		colorScheme = "Dark mode"
 	}
-	return fmt.Sprintf("%s %s %s [w,h][%d,%d]", m.term, m.profile, colorScheme, m.width, m.height)
+	return fmt.Sprintf("%s %s %s [w,h][%d,%d] %s", m.term, m.profile, colorScheme, m.width, m.height, userType)
 }

@@ -27,3 +27,5 @@ data/
 tmp/
 *.db
 *.db.wal
+
+allowedHosts
