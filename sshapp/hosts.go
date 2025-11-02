@@ -50,6 +50,9 @@ func (h *allowedHosts) isAllowed(pk ssh.PublicKey) (bool, error) {
 func (h *allowedHosts) loadInFromFile() error {
 	assert.Assert(h.allowedHosts == nil, "expected map to be nil")
 
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	file, err := os.OpenFile(h.allowedHostsPath, os.O_RDONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("could not open allowedHosts file: %s", err)
@@ -59,8 +62,6 @@ func (h *allowedHosts) loadInFromFile() error {
 	h.allowedHosts = map[fingerprint]ssh.PublicKey{}
 	scanner := bufio.NewScanner(file)
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	for scanner.Scan() {
 		entry := scanner.Bytes()
 		pk, _, _, _, err := ssh.ParseAuthorizedKey(entry)
