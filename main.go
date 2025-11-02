@@ -102,7 +102,7 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 		Host:             config.GetString("SSH_APP_HOST"),
 		Port:             config.GetString("SSH_APP_PORT"),
 		HostKeyPath:      config.GetString("SSH_APP_HOST_KEY_PATH"),
-		AllowedHostsPath: "./allowedHosts",
+		AllowedHostsPath: config.GetString("SSH_APP_ALLOWEDHOSTS_PATH"),
 	}, logger.WithPrefix("ssh-app"))
 	if err != nil {
 		return nil, cfs, err

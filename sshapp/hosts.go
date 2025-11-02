@@ -2,6 +2,7 @@ package sshapp
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"sync"
@@ -28,7 +29,6 @@ func newAllowedHosts(allowedHostsPath string) *allowedHosts {
 
 func (h *allowedHosts) isAllowed(pk ssh.PublicKey) (bool, error) {
 	if pk == nil {
-		fmt.Println("meep")
 		return false, nil
 	}
 
@@ -63,7 +63,11 @@ func (h *allowedHosts) loadInFromFile() error {
 	scanner := bufio.NewScanner(file)
 
 	for scanner.Scan() {
-		entry := scanner.Bytes()
+		entry := bytes.TrimSpace(scanner.Bytes())
+		if len(entry) == 0 || entry[0] == '#' {
+			continue
+		}
+
 		pk, _, _, _, err := ssh.ParseAuthorizedKey(entry)
 		if err != nil {
 			panic(err)
@@ -71,6 +75,8 @@ func (h *allowedHosts) loadInFromFile() error {
 		fp := ssh.FingerprintSHA256(pk)
 		h.allowedHosts[fp] = pk
 	}
+
+	_ = scanner.Err()
 
 	assert.AssertNotNil(h.allowedHosts)
 	return nil
