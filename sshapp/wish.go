@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
-	"github.com/charmbracelet/ssh"
+	wishssh "github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
 	"github.com/charmbracelet/wish/activeterm"
 	wishTea "github.com/charmbracelet/wish/bubbletea"
@@ -16,7 +16,7 @@ import (
 )
 
 type SSHApp struct {
-	s      *ssh.Server
+	s      *wishssh.Server
 	logger *log.Logger
 }
 
@@ -32,6 +32,9 @@ func NewSSHApp(opts SSHAppOptions, logger *log.Logger) (*SSHApp, error) {
 	s, err := wish.NewServer(
 		wish.WithAddress(net.JoinHostPort(opts.Host, opts.Port)),
 		wish.WithHostKeyPath(opts.HostKeyPath),
+		wish.WithPublicKeyAuth(func(ctx wishssh.Context, key wishssh.PublicKey) bool {
+			return true
+		}),
 		wish.WithMiddleware(
 			wishTea.Middleware(teaHandler(h, logger)),
 			activeterm.Middleware(),
@@ -51,7 +54,7 @@ func NewSSHApp(opts SSHAppOptions, logger *log.Logger) (*SSHApp, error) {
 func (s *SSHApp) Start() {
 	go func() {
 		err := s.s.ListenAndServe()
-		if err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+		if err != nil && !errors.Is(err, wishssh.ErrServerClosed) {
 			// todo: should either signal a retry to notify in someway
 			s.logger.Error("Could not serve server", "error", err)
 		}
@@ -60,14 +63,14 @@ func (s *SSHApp) Start() {
 
 func (s *SSHApp) Stop(ctx context.Context) error {
 	err := s.s.Shutdown(ctx)
-	if err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+	if err != nil && !errors.Is(err, wishssh.ErrServerClosed) {
 		return err
 	}
 	return nil
 }
 
 func teaHandler(h *allowedHosts, logger *log.Logger) wishTea.Handler {
-	return func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
+	return func(s wishssh.Session) (tea.Model, []tea.ProgramOption) {
 		pty, _, _ := s.Pty()
 
 		renderer := wishTea.MakeRenderer(s)
