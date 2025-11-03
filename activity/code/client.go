@@ -99,6 +99,10 @@ func NewActivityClient(
 	return ac
 }
 
+func (c *ActivityClient) MarkRepoRedacted(repo string) error {
+	return c.redactedRepos.redactRepo(repo)
+}
+
 func (c *ActivityClient) MessageType() string {
 	return c.muxMessageType
 }

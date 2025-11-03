@@ -20,8 +20,8 @@ func newRedactedRepos(path string) (*redactedRepos, error) {
 		return nil, err
 	}
 
-	bytesRepos := bytes.Split(contents, []byte("/n"))
-	repos := make(map[string]struct{}, len(bytesRepos))
+	bytesRepos := bytes.Split(bytes.TrimSpace(contents), []byte("\n"))
+	repos := make(map[string]struct{})
 	for _, br := range bytesRepos {
 		repos[string(br)] = struct{}{}
 	}
@@ -52,11 +52,11 @@ func (rr *redactedRepos) redactRepo(repo string) error {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	defer tempFile.Close()
 	defer os.Remove(tempPath)
+	defer tempFile.Close()
 
 	for r := range rr.repos {
-		_, err := tempFile.WriteString(r + "/n")
+		_, err := tempFile.WriteString(r + "\n")
 		if err != nil {
 			return err
 		}
@@ -68,6 +68,7 @@ func (rr *redactedRepos) redactRepo(repo string) error {
 	}
 	defer file.Close()
 
+	_, _ = tempFile.Seek(0, 0)
 	if _, err = io.Copy(file, tempFile); err != nil {
 		return err
 	}

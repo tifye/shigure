@@ -57,6 +57,30 @@ func handlePostClearYoutubeActivity(ac *youtube.ActivityClient) echo.HandlerFunc
 	}
 }
 
+func handlePostMarkRepoRedacted(logger *log.Logger, ac *code.ActivityClient) echo.HandlerFunc {
+	type request struct {
+		Repo string `body:"repo"`
+	}
+	return func(c echo.Context) error {
+		var req request
+		if err := c.Bind(&req); err != nil {
+			return err
+		}
+
+		if len(req.Repo) == 0 || len(req.Repo) > 300 {
+			return c.NoContent(http.StatusBadRequest)
+		}
+
+		err := ac.MarkRepoRedacted(req.Repo)
+		if err != nil {
+			logger.Error("Failed to mark repo redacted", "error", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		return c.NoContent(http.StatusOK)
+	}
+}
+
 func handlePostVSCodeActivity(_ *log.Logger, ac *code.ActivityClient) echo.HandlerFunc {
 	type request code.VSCodeActivity
 	return func(c echo.Context) error {

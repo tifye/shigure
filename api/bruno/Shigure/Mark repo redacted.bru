@@ -1,0 +1,21 @@
+meta {
+  name: Mark repo redacted
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{host}}/activity/vscode/redacted
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "repo": "https://github.com/tifye/shigure"
+  }
+}
