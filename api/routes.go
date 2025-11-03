@@ -20,6 +20,7 @@ func registerRoutes(e *echo.Echo, logger *log.Logger, config *viper.Viper, deps 
 
 	e.GET("/activity/vscode", handleGetVSCodeActivity(logger, deps.CodeActivityClient))
 	e.POST("/activity/vscode", handlePostVSCodeActivity(logger, deps.CodeActivityClient), requireAuthMiddleware(logger, config))
+	e.POST("/activity/vscode/redacted", handlePostMarkRepoRedacted(logger, deps.CodeActivityClient), requireAuthMiddleware(logger, config))
 
 	e.GET("/auth/token", handleGetToken(logger, config))
 	e.GET("/auth/token/generate", handleGetGenerateToken(logger, config), requireAuthMiddleware(logger, config))
