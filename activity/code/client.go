@@ -52,7 +52,8 @@ type ActivityClient struct {
 	lastUpdate atomic.Value
 	mu         sync.RWMutex
 
-	store *CodeActivityStore
+	store         *CodeActivityStore
+	redactedRepos *redactedRepos
 
 	mux            *mux.Mux
 	muxMessageType string
@@ -67,12 +68,18 @@ func NewActivityClient(
 	assert.AssertNotNil(mux)
 	assert.AssertNotNil(store)
 
+	rr, err := newRedactedRepos("./data/redactedRepos")
+	if err != nil {
+		panic(err)
+	}
+
 	ac := &ActivityClient{
 		logger:         logger,
 		mux:            mux,
 		muxMessageType: "vscode",
 		activity:       defaultAcitivty,
 		store:          store,
+		redactedRepos:  rr,
 		lastUpdate:     atomic.Value{},
 	}
 	ac.lastUpdate.Store(time.Now())
@@ -102,6 +109,10 @@ func (c *ActivityClient) HandleMessage(_ *mux.Channel, _ []byte) error {
 
 func (c *ActivityClient) SetActivity(ctx context.Context, a VSCodeActivity) {
 	c.logger.Debug("updating code activity", "repository", a.RepositoryURL)
+
+	if c.redactedRepos.isRedacted(a.RepositoryURL) {
+		a.CodeChunk = strings.Repeat("[REDACTED]\n", 10)
+	}
 
 	if a.Filename != "" {
 		a.Filename = path.Base(strings.ReplaceAll(a.Filename, "\\", "/"))
