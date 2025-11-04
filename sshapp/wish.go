@@ -80,16 +80,29 @@ func teaHandler(h *allowedHosts, logger *log.Logger) wishTea.Handler {
 			logger.Error("Failed to lookup allowed host", "error", err)
 		}
 
+		programOpts := []tea.ProgramOption{tea.WithAltScreen()}
+
+		if isAdmin {
+			am := adminModel{
+				term:       pty.Term,
+				profile:    renderer.ColorProfile().Name(),
+				width:      uint(pty.Window.Width),
+				height:     uint(pty.Window.Height),
+				isDarkMode: renderer.HasDarkBackground(),
+			}
+			return am, programOpts
+		}
+
 		m := model{
 			term:       pty.Term,
 			profile:    renderer.ColorProfile().Name(),
 			width:      uint(pty.Window.Width),
 			height:     uint(pty.Window.Height),
 			isDarkMode: renderer.HasDarkBackground(),
-			isAdmin:    isAdmin,
 		}
 
-		return m, []tea.ProgramOption{tea.WithAltScreen()}
+		return m, programOpts
+
 	}
 }
 
@@ -118,14 +131,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	userType := "User"
-	if m.isAdmin {
-		userType = "Admin"
-	}
-
 	colorScheme := "Light mode"
 	if m.isDarkMode {
 		colorScheme = "Dark mode"
 	}
-	return fmt.Sprintf("%s %s %s [w,h][%d,%d] %s", m.term, m.profile, colorScheme, m.width, m.height, userType)
+	return fmt.Sprintf("%s %s %s [w,h][%d,%d]", m.term, m.profile, colorScheme, m.width, m.height)
 }
