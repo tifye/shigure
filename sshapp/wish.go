@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/wish/activeterm"
 	wishTea "github.com/charmbracelet/wish/bubbletea"
 	"github.com/charmbracelet/wish/logging"
+	"github.com/tifye/shigure/sshapp/sshadmin"
 )
 
 type SSHApp struct {
@@ -83,12 +84,14 @@ func teaHandler(h *allowedHosts, logger *log.Logger) wishTea.Handler {
 		programOpts := []tea.ProgramOption{tea.WithAltScreen()}
 
 		if isAdmin {
-			am := adminModel{
-				term:       pty.Term,
-				profile:    renderer.ColorProfile().Name(),
-				width:      uint(pty.Window.Width),
-				height:     uint(pty.Window.Height),
-				isDarkMode: renderer.HasDarkBackground(),
+			am := sshadmin.AdminModel{
+				Profile: sshadmin.ProfileInfo{
+					Term:         pty.Term,
+					ColorProfile: renderer.ColorProfile().Name(),
+					Width:        uint(pty.Window.Width),
+					Height:       uint(pty.Window.Height),
+					IsDarkMode:   renderer.HasDarkBackground(),
+				},
 			}
 			return am, programOpts
 		}
