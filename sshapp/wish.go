@@ -83,25 +83,21 @@ func teaHandler(h *allowedHosts, logger *log.Logger) wishTea.Handler {
 
 		programOpts := []tea.ProgramOption{tea.WithAltScreen()}
 
+		profile := sshadmin.ProfileInfo{
+			Term:         pty.Term,
+			ColorProfile: renderer.ColorProfile().Name(),
+			Width:        uint(pty.Window.Width),
+			Height:       uint(pty.Window.Height),
+			IsDarkMode:   renderer.HasDarkBackground(),
+		}
+
 		if isAdmin {
-			am := sshadmin.AdminModel{
-				Profile: sshadmin.ProfileInfo{
-					Term:         pty.Term,
-					ColorProfile: renderer.ColorProfile().Name(),
-					Width:        uint(pty.Window.Width),
-					Height:       uint(pty.Window.Height),
-					IsDarkMode:   renderer.HasDarkBackground(),
-				},
-			}
+			am := sshadmin.NewAdminModel(profile)
 			return am, programOpts
 		}
 
 		m := model{
-			term:       pty.Term,
-			profile:    renderer.ColorProfile().Name(),
-			width:      uint(pty.Window.Width),
-			height:     uint(pty.Window.Height),
-			isDarkMode: renderer.HasDarkBackground(),
+			profile: profile,
 		}
 
 		return m, programOpts
@@ -110,12 +106,7 @@ func teaHandler(h *allowedHosts, logger *log.Logger) wishTea.Handler {
 }
 
 type model struct {
-	term       string
-	profile    string
-	width      uint
-	height     uint
-	isDarkMode bool
-	isAdmin    bool
+	profile sshadmin.ProfileInfo
 }
 
 func (m model) Init() tea.Cmd {
@@ -134,9 +125,5 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	colorScheme := "Light mode"
-	if m.isDarkMode {
-		colorScheme = "Dark mode"
-	}
-	return fmt.Sprintf("%s %s %s [w,h][%d,%d]", m.term, m.profile, colorScheme, m.width, m.height)
+	return m.profile.String()
 }

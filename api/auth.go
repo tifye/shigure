@@ -107,17 +107,25 @@ func handleGetToken(logger *log.Logger, config *viper.Viper) echo.HandlerFunc {
 
 func handleGetGenerateToken(logger *log.Logger, config *viper.Viper) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 30)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		})
 		signingKey := config.GetString("JWT_SIGNING_KEY")
 		assert.AssertNotEmpty(signingKey)
-		signed, err := token.SignedString([]byte(signingKey))
+		signed, err := GenerateToken(signingKey)
 		if err != nil {
 			logger.Error("jwt sign:", "err", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 		return c.String(http.StatusOK, signed)
 	}
+}
+
+func GenerateToken(signingKey string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 30)),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+	})
+	signed, err := token.SignedString([]byte(signingKey))
+	if err != nil {
+		return "", err
+	}
+	return signed, nil
 }

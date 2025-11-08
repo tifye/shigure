@@ -18,6 +18,6 @@ func (p ProfileInfo) String() string {
 	if p.IsDarkMode {
 		colorScheme = "Dark mode"
 	}
-	return fmt.Sprintf("%s %s %s [w,h][%d,%d] Admin", p.Term, p.ColorProfile, colorScheme, p.Width, p.Height)
+	return fmt.Sprintf("%s %s %s [w,h][%d,%d]", p.Term, p.ColorProfile, colorScheme, p.Width, p.Height)
 
 }
