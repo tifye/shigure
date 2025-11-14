@@ -162,6 +162,7 @@ func initDependencies(logger *log.Logger, config *viper.Viper) (deps *api.Server
 
 	sessionStore := sessions.NewFilesystemStore("", []byte(config.GetString("OTP_SECRET")))
 	sessionStore.Options.Partitioned = true
+	sessionStore.Options.Secure = true
 	newSessionCookie := func(s *sessions.Session) (*http.Cookie, error) {
 		val, err := securecookie.EncodeMulti(s.Name(), s.ID, sessionStore.Codecs...)
 		if err != nil {
